@@ -96,6 +96,8 @@ Other:["Mixed / interbedded","Overburden / till","Other"]};
 const WX=['Clear','Cloudy','Partially cloudy','Overcast','Drizzle','Light rain','Rain','Snow','Blizzard'],WD=['N','NE','E','SE','S','SW','W','NW'],
 LAYERS=['Overburden','Stemming','Main charge','Primer','Spacers / Deck','Main charge','Primer','Subdrilling'];
 const TASKS=['Design blast','Verify drilled holes','Book seismograph','Request blasting materials','Signaling setup','Prepare stemming','Prepare matts (if necessary)','Receive blasting materials','Assign roles amongst helpers','Load shot','Connect detonators','Stemming','Verify connections','Place matts (optional)','Clear area from workers/equipment','Audio signal for blast','Shoot','Verify shoot','All clear signal','Count and check extra material to return','Elaborate blast Report'];
+let SK={tool:'pen',color:'#111',objs:[],sel:-1,cur:null,arrowStart:null,_preview:null};
+const SKCOLORS=['#111','#c62828','#1565c0'];
 const el=(t,a={},...c)=>{const e=document.createElement(t);for(const k in a)k=='class'?e.className=a[k]:e.setAttribute(k,a[k]);c.forEach(x=>e.append(x));return e};
 const btn=(t,f)=>{const b=el('button',{type:'button'},t);b.onclick=f;return b};
 let tm,tt;const later=()=>{clearTimeout(tm);tm=setTimeout(save,500)};
@@ -125,6 +127,74 @@ function pad(id,w,h,cols){
  cols.forEach((k,i)=>{const b=el('button',{class:'sw'+(i?'':' on'),type:'button','aria-label':'Pen colour '+(i+1)});b.style.background=k;b.onclick=()=>{col=k;t.querySelectorAll('.sw').forEach(s=>s.classList.toggle('on',s===b))};t.append(b)});
  const cb=el('button',{type:'button'},'Clear');cb.onclick=()=>{clr();later()};t.append(cb);
  return el('div',{class:'s2'},c,t)}
+
+/* ---------- Sketch editor: editable objects (pen / arrow+label / text / hole / move-delete) ---------- */
+function sketchEditor(){
+ const W=1400,H=686;
+ const canvas=el('canvas',{width:W,height:H,class:'pad grid'}),ctx=canvas.getContext('2d');
+ function measure(o){if(o.type=='text'){ctx.font=(W*0.022)+'px Barlow, sans-serif';return ctx.measureText(o.text||'').width}return 0}
+ function bbox(o){
+  if(o.type=='stroke'){const xs=o.pts.map(p=>p.x),ys=o.pts.map(p=>p.y);return{x:Math.min(...xs),y:Math.min(...ys),w:Math.max(...xs)-Math.min(...xs)||1,h:Math.max(...ys)-Math.min(...ys)||1}}
+  if(o.type=='arrow')return{x:Math.min(o.x1,o.x2),y:Math.min(o.y1,o.y2),w:Math.abs(o.x2-o.x1)||1,h:Math.abs(o.y2-o.y1)||1};
+  if(o.type=='text')return{x:o.x,y:o.y-W*0.02,w:measure(o)||W*0.05,h:W*0.026};
+  const r=W*0.014;return{x:o.x-r,y:o.y-r,w:r*2,h:r*2}}
+ function drawArrow(c,x1,y1,x2,y2,color){
+  c.strokeStyle=color;c.lineWidth=W*0.0025;c.beginPath();c.moveTo(x1,y1);c.lineTo(x2,y2);c.stroke();
+  const ang=Math.atan2(y2-y1,x2-x1),hl=W*0.02;
+  c.beginPath();c.moveTo(x2,y2);c.lineTo(x2-hl*Math.cos(ang-Math.PI/6),y2-hl*Math.sin(ang-Math.PI/6));c.lineTo(x2-hl*Math.cos(ang+Math.PI/6),y2-hl*Math.sin(ang+Math.PI/6));c.closePath();c.fillStyle=color;c.fill()}
+ function drawObj(c,o,selected){
+  c.lineCap='round';c.lineJoin='round';
+  if(o.type=='stroke'){c.strokeStyle=o.color;c.lineWidth=W*0.0075;c.beginPath();o.pts.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.stroke()}
+  else if(o.type=='arrow'){drawArrow(c,o.x1,o.y1,o.x2,o.y2,o.color);if(o.label){c.fillStyle=o.color;c.font=(W*0.02)+'px Barlow, sans-serif';c.fillText(o.label,(o.x1+o.x2)/2+6,(o.y1+o.y2)/2-6)}}
+  else if(o.type=='text'){c.fillStyle=o.color;c.font=(W*0.022)+'px Barlow, sans-serif';c.fillText(o.text,o.x,o.y)}
+  else if(o.type=='hole'){const r=W*0.014;c.strokeStyle=o.color;c.lineWidth=W*0.0025;c.beginPath();c.arc(o.x,o.y,r,0,7);c.stroke();
+   c.fillStyle=o.color;c.font=(W*0.016)+'px Barlow, sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(o.label||'',o.x,o.y);c.textAlign='left';c.textBaseline='alphabetic'}
+  if(selected){c.save();c.strokeStyle='#00b3ff';c.setLineDash([6,4]);c.lineWidth=2;const b=bbox(o);c.strokeRect(b.x-6,b.y-6,b.w+12,b.h+12);c.restore()}}
+ function redraw(){ctx.clearRect(0,0,W,H);SK.objs.forEach((o,i)=>drawObj(ctx,o,i===SK.sel));if(SK._preview)drawObj(ctx,SK._preview,false);if(SK.cur)drawObj(ctx,SK.cur,false)}
+ function hit(p){for(let i=SK.objs.length-1;i>=0;i--){const b=bbox(SK.objs[i]);if(p.x>=b.x-8&&p.x<=b.x+b.w+8&&p.y>=b.y-8&&p.y<=b.y+b.h+8)return i}return -1}
+ function ptFromEvent(e){const r=canvas.getBoundingClientRect();return{x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height}}
+ function offsetFor(o,p){if(o.type=='stroke')return{dx:p.x-o.pts[0].x,dy:p.y-o.pts[0].y,base:o.pts.map(q=>({x:q.x,y:q.y}))};
+  if(o.type=='arrow')return{dx:p.x-o.x1,dy:p.y-o.y1,x1:o.x1,y1:o.y1,x2:o.x2,y2:o.y2};
+  return{dx:p.x-o.x,dy:p.y-o.y,x:o.x,y:o.y}}
+ function moveObj(o,p,off){
+  if(o.type=='stroke'){const dx=p.x-off.dx-off.base[0].x,dy=p.y-off.dy-off.base[0].y;o.pts=off.base.map(q=>({x:q.x+dx,y:q.y+dy}))}
+  else if(o.type=='arrow'){const dx=p.x-off.dx-off.x1,dy=p.y-off.dy-off.y1;o.x1=off.x1+dx;o.y1=off.y1+dy;o.x2=off.x2+dx;o.y2=off.y2+dy}
+  else{o.x=p.x-off.dx;o.y=p.y-off.dy}}
+ function askText(defVal,cb){
+  const bar=el('div',{style:'position:fixed;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:8;display:flex;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px'});
+  const inp=el('input',{type:'text'});inp.value=defVal||'';
+  bar.append(inp,btn('OK',()=>{document.body.removeChild(bar);cb(inp.value)}),btn('Cancel',()=>{document.body.removeChild(bar);cb(null)}));
+  document.body.append(bar);inp.focus()}
+ let downPt=null;
+ canvas.onpointerdown=e=>{e.preventDefault();canvas.setPointerCapture(e.pointerId);const p=ptFromEvent(e);downPt=p;
+  if(SK.tool=='pen')SK.cur={type:'stroke',color:SK.color,pts:[p]};
+  else if(SK.tool=='arrow')SK.arrowStart=p;
+  else if(SK.tool=='select'){const idx=hit(p);SK.sel=idx;SK.dragOffset=idx>=0?offsetFor(SK.objs[idx],p):null;redraw()}};
+ canvas.onpointermove=e=>{if(!downPt)return;const p=ptFromEvent(e);
+  if(SK.tool=='pen'&&SK.cur){SK.cur.pts.push(p);redraw()}
+  else if(SK.tool=='arrow'&&SK.arrowStart){SK._preview={type:'arrow',color:SK.color,x1:SK.arrowStart.x,y1:SK.arrowStart.y,x2:p.x,y2:p.y};redraw()}
+  else if(SK.tool=='select'&&SK.sel>=0&&SK.dragOffset){moveObj(SK.objs[SK.sel],p,SK.dragOffset);redraw()}};
+ canvas.onpointerup=canvas.onpointercancel=e=>{
+  const p=ptFromEvent(e);
+  if(SK.tool=='pen'&&SK.cur){if(SK.cur.pts.length>1)SK.objs.push(SK.cur);SK.cur=null;redraw();later()}
+  else if(SK.tool=='arrow'&&SK.arrowStart){const ar={type:'arrow',color:SK.color,x1:SK.arrowStart.x,y1:SK.arrowStart.y,x2:p.x,y2:p.y,label:''};SK.arrowStart=null;SK._preview=null;
+   if(Math.hypot(ar.x2-ar.x1,ar.y2-ar.y1)>8)askText('',val=>{if(val!=null){ar.label=(val||'').trim();SK.objs.push(ar);redraw();later()}else redraw()});else redraw()}
+  else if(SK.tool=='text'){askText('',val=>{if(val){SK.objs.push({type:'text',color:SK.color,x:p.x,y:p.y,text:val});redraw();later()}})}
+  else if(SK.tool=='hole'){askText('',val=>{if(val!=null){SK.objs.push({type:'hole',color:SK.color,x:p.x,y:p.y,label:(val||'').trim()});redraw();later()}})}
+  else if(SK.tool=='select'){SK.dragOffset=null;if(SK.sel>=0)later()}
+  downPt=null};
+ const tb=el('div',{class:'tabs'});
+ [['pen','Pen'],['arrow','Arrow'],['text','Text'],['hole','Hole'],['select','Move/Delete']].forEach(([t,label])=>{
+  const b=el('button',{type:'button',class:'tab'+(t==SK.tool?' on':''),'data-t':t},label);
+  b.onclick=()=>{SK.tool=t;SK.sel=-1;tb.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));redraw()};tb.append(b)});
+ const row=el('div',{class:'tools'});
+ SKCOLORS.forEach((c,i)=>{const b=el('button',{class:'sw'+(c==SK.color?' on':''),type:'button','aria-label':'Colour'});b.style.background=c;b.onclick=()=>{SK.color=c;row.querySelectorAll('.sw').forEach(s=>s.classList.toggle('on',s===b))};row.append(b)});
+ row.append(btn('Undo',()=>{SK.objs.pop();SK.sel=-1;redraw();later()}));
+ row.append(btn('Delete selected',()=>{if(SK.sel>=0){SK.objs.splice(SK.sel,1);SK.sel=-1;redraw();later()}}));
+ row.append(btn('Clear all',()=>{SK.objs=[];SK.sel=-1;redraw();later()}));
+ pads.sk={c:canvas,clr:()=>{SK.objs=[];SK.sel=-1;redraw()},load:null,redraw};
+ redraw();
+ return el('div',{class:'s2'},el('p',{class:'hint'},'Pen: draw freehand. Arrow: drag, then type the time label. Text / Hole: tap to place. Move/Delete: tap an item to select, then drag or delete it.'),tb,canvas,row)}
 const subs=(n,name,mk)=>Array.from({length:n},(_,j)=>{const i=j+1,s=el('div',{class:'sub'},el('h3',{},name+' '+i)),g=el('div',{class:'g'});mk(i).forEach(f=>g.append(f));s.append(g);return s});
 
 const REF=fld('ref','Correction of report','text',null,1);REF.querySelector('input').readOnly=true;
@@ -138,7 +208,7 @@ sec('Explosives',...subs(8,'Explosive',i=>[fld('en'+i,'Explosive name'),fld('ec'
 const lay=k=>{const d=el('div',{},el('h3',{},'Type '+k));LAYERS.forEach((t,i)=>d.append(chk(k+i,t)));return d};
 sec('Charge layout per hole',lay('A'),lay('B'));
 sec('Helpers',...[1,2,3,4].map(i=>fld('h'+i,'Helper '+i)));
-sec('Sketch of shot / layout',el('p',{class:'s2 hint'},'Include nearest building, North, timing and sequence.'),pad('sk',800,392,['#111','#c62828','#1565c0']));
+sec('Sketch of shot / layout',el('p',{class:'s2 hint'},'Include nearest building, North, timing and sequence.'),sketchEditor());
 sec('Notes',fld('notes','Notes (about 3 lines print on page 1; the rest goes to page 2)','area',null,1));
 sec('Attached',chk('c1','Blast Record'),chk('c2','Drill report'),chk('c3','Additional notes'),chk('c4','Other docs'),fld('docsOther','Other docs (specify)'));
 sec('Signature',pad('sg',600,200,[]));
@@ -146,10 +216,12 @@ sec('Signature',pad('sg',600,200,[]));
 const num=s=>parseFloat(String(s).replace(',','.')),K$=k=>$('[data-k='+k+']');
 function upd(){const t=num(K$('totW').value),r=num(K$('volume').value);K$('pf').value=t>0&&r>0?(t/r).toFixed(2):'';K$('ref').closest('label').classList.toggle('hide',!K$('ref').value);[['material','matOther'],['prim','primOther'],['stem','stemOther']].forEach(([a,c])=>K$(c).closest('label').classList.toggle('hide',K$(a).value!='Other'))}
 const collect=()=>{const v={};document.querySelectorAll('[data-k]').forEach(e=>v[e.dataset.k]=e.type=='checkbox'?e.checked:e.value);return v};
-function save(){try{const v=collect();v._sk=pads.sk.c.toDataURL();v._sg=pads.sg.c.toDataURL();localStorage.setItem(K,JSON.stringify(v))}catch(e){}}
+function save(){try{const v=collect();v._sk=pads.sk.c.toDataURL();v._skObjs=JSON.stringify(SK.objs);v._sg=pads.sg.c.toDataURL();localStorage.setItem(K,JSON.stringify(v))}catch(e){}}
 function reset(){document.querySelectorAll('[data-k]').forEach(e=>e.type=='checkbox'?e.checked=false:e.value='');pads.sk.clr();pads.sg.clr();try{localStorage.removeItem(K)}catch(e){}upd();scrollTo(0,0)}
 $('#form').addEventListener('input',()=>{upd();later()});
-try{const v=JSON.parse(localStorage.getItem(K)||'null');if(v){document.querySelectorAll('[data-k]').forEach(e=>{const x=v[e.dataset.k];if(x!==undefined)e.type=='checkbox'?e.checked=x:e.value=x});['sk','sg'].forEach(k=>v['_'+k]&&pads[k].load(v['_'+k]))}}catch(e){}
+try{const v=JSON.parse(localStorage.getItem(K)||'null');if(v){document.querySelectorAll('[data-k]').forEach(e=>{const x=v[e.dataset.k];if(x!==undefined)e.type=='checkbox'?e.checked=x:e.value=x});
+ if(v._skObjs){try{SK.objs=JSON.parse(v._skObjs)}catch(e){}pads.sk.redraw()}
+ if(v._sg)pads.sg.load(v._sg)}}catch(e){}
 upd();
 
 /* ---------- PDF: main Blast Report (unchanged layout, dynamic company logo) ---------- */
