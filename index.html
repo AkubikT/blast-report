@@ -106,6 +106,8 @@ function fld(id,label,type='text',opt,span){
  if(type=='sel'){i=el('select');i.append(el('option',{value:''},'Select'));const add=(p,a)=>a.forEach(o=>p.append(el('option',{},o)));
   Array.isArray(opt)?add(i,opt):Object.entries(opt).forEach(([g,a])=>{const og=el('optgroup',{label:g});add(og,a);i.append(og)})}
  else if(type=='area')i=el('textarea',{rows:5});
+ else if(type=='date')i=el('input',{type:'date'});
+ else if(type=='time')i=el('input',{type:'time'});
  else{i=el('input',{type:'text',autocomplete:'off'});if(type=='num')i.inputMode='decimal';if(opt)i.placeholder=opt}
  i.dataset.k=id;l.append(i);return l}
 const N=(a,b)=>fld(a,b,'num');
@@ -126,10 +128,10 @@ function pad(id,w,h,cols){
 const subs=(n,name,mk)=>Array.from({length:n},(_,j)=>{const i=j+1,s=el('div',{class:'sub'},el('h3',{},name+' '+i)),g=el('div',{class:'g'});mk(i).forEach(f=>g.append(f));s.append(g);return s});
 
 const REF=fld('ref','Correction of report','text',null,1);REF.querySelector('input').readOnly=true;
-sec('Blast',fld('date','Date','text','YYYY-MM-DD'),fld('time','Time','text','HH:MM'),fld('blastNo','Blast #'),fld('blaster','Blaster'),fld('project','Project','text',null,1),REF);
+sec('Blast',fld('date','Date','date'),fld('time','Time','time'),fld('blastNo','Blast #'),fld('blaster','Blaster'),fld('project','Project','text',null,1),REF);
 sec('Rock and pattern',fld('material','Type of material','sel',ROCKS,1),fld('matOther','Specify rock type','text',null,1),fld('pattern','Pattern'),fld('holes','Number of holes','num'),N('rows','Number of rows'),N('depth','Average depth (m)'),N('diam','Hole diameter (mm)'),N('volume','Overall rock volume (m³)'));
 sec('Weather',fld('weather','Weather','sel',WX,1),fld('windDir','Wind direction','sel',WD),N('windSpd','Wind speed (km/h)'));
-sec('Seismograph',...subs(4,'Seismograph',i=>[N('sd'+i,'Distance (m)'),fld('st'+i,'Details'),N('sv'+i,'Vibrations (mm/s)'),N('sb'+i,'Decibels (dB)')]));
+sec('Seismograph',...subs(4,'Seismograph',i=>[fld('sbt'+i,'Building type','text','e.g. House, Garage, Warehouse'),N('sd'+i,'Distance (m)'),fld('st'+i,'Details'),N('sv'+i,'Vibrations (mm/s)'),N('sb'+i,'Decibels (dB)')]));
 const pf=fld('pf','Powder factor (kg/m³, auto)');pf.querySelector('input').readOnly=true;
 sec('Initiation and loading',fld('initSys','Initiation system','text',null,1),N('maxW','Max weight × hole (kg)'),N('totW','Total weight explosives (kg)'),fld('prim','Priming','sel',['Single','Double','Triple','Other']),fld('primOther','Priming other (specify)'),N('collar','Collar (m)'),fld('stem','Stemming','sel',['¼','½','¾','Other']),fld('stemOther','Stemming other (specify)'),fld('matting','Matting'),N('mattQty','Matting qty'),pf);
 sec('Explosives',...subs(8,'Explosive',i=>[fld('en'+i,'Explosive name'),fld('ec'+i,'Characteristics'),N('eq'+i,'Qty')]));
@@ -185,9 +187,9 @@ function build(v){
  F(7,1);T('Seismograph:',17.7,42.4);F(6.5);
  [['Distance (meters)',53.3],['Details',108],['Vibrations (mm/s)',164.9],['Decibels (dB)',193.7]].forEach(([t,c])=>T(t,c,42.4,{align:'center'}));
  const ys=[49.2,54.9,60.3,66];ln(X0,43.8,X1,43.8);ys.forEach(y=>ln(X0,y,X1,y));
- [43.8,62.8,153.5,182.1].forEach(a=>ln(a,43.8,a,66,.2,120));
+ [17,43.8,62.8,153.5,182.1].forEach(a=>ln(a,43.8,a,66,.2,120));
  ys.forEach((y,i)=>{d.setDrawColor(0);d.setLineWidth(.25);d.circle(13.3,y-2.75,1.7);F(7);T(i+1,13.3,y-1.85,{align:'center'});
-  fit(v['sd'+(i+1)],44.8,y-1.5,17);fit(v['st'+(i+1)],63.8,y-1.5,88);fit(v['sv'+(i+1)],154.5,y-1.5,26.5);fit(v['sb'+(i+1)],183.1,y-1.5,22)});
+  fit(v['sbt'+(i+1)],18,y-1.5,24.5);fit(v['sd'+(i+1)],44.8,y-1.5,17);fit(v['st'+(i+1)],63.8,y-1.5,88);fit(v['sv'+(i+1)],154.5,y-1.5,26.5);fit(v['sb'+(i+1)],183.1,y-1.5,22)});
  // Initiation / priming / matting
  lf('Initiation system:',11.3,70.1,43.5,72.6,v.initSys);lf('Max weight × Hole:',73.3,70.1,105.7,134.3,v.maxW?v.maxW+' kg':'');
  lf('Total weight explosives:',135.6,70.1,176.9,X1,v.totW?v.totW+' kg':'',1);
@@ -415,14 +417,14 @@ try{const s=JSON.parse(localStorage.getItem(EXK)||'null');if(s)EX={...defaultEX(
 function tabBR(){
  const s=el('div',{});
  const bI=el('input',{type:'text'});bI.value=EX.blastRecord.blaster||'';bI.oninput=()=>{EX.blastRecord.blaster=bI.value;later2()};
- const dI=el('input',{type:'text',placeholder:'YYYY-MM-DD'});dI.value=EX.blastRecord.blastDate||'';dI.oninput=()=>{EX.blastRecord.blastDate=dI.value;later2()};
+ const dI=el('input',{type:'date'});dI.value=EX.blastRecord.blastDate||'';dI.oninput=()=>{EX.blastRecord.blastDate=dI.value;later2()};
  s.append(el('section',{class:'sec'},el('h2',{},'Blast Preparation'),el('div',{class:'g'},
   el('label',{class:'f'},el('span',{},'Blaster'),bI),el('label',{class:'f'},el('span',{},'Blast date'),dI))));
  const list=el('section',{class:'sec'},el('h2',{},'Tasks'));
  EX.blastRecord.tasks.forEach(t=>{
   const cbI=el('input',{type:'checkbox'});cbI.checked=!!t.done;cbI.onchange=()=>{t.done=cbI.checked;later2()};
-  const tI=el('input',{type:'text',placeholder:'Time'});tI.value=t.time||'';tI.oninput=()=>{t.time=tI.value;later2()};
-  const dI2=el('input',{type:'text',placeholder:'Date'});dI2.value=t.date||'';dI2.oninput=()=>{t.date=dI2.value;later2()};
+  const tI=el('input',{type:'time'});tI.value=t.time||'';tI.oninput=()=>{t.time=tI.value;later2()};
+  const dI2=el('input',{type:'date'});dI2.value=t.date||'';dI2.oninput=()=>{t.date=dI2.value;later2()};
   const nI=el('input',{type:'text',placeholder:'Notes / delegated to'});nI.value=t.notes||'';nI.oninput=()=>{t.notes=nI.value;later2()};
   list.append(el('div',{class:'tasklabel'},t.task),el('div',{class:'row4'},cbI,tI,dI2,nI))});
  s.append(list);return s}
