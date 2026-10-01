@@ -51,6 +51,7 @@ button{font:600 16px Barlow,system-ui,sans-serif;min-height:46px;padding:0 16px;
 .hash{font-family:ui-monospace,monospace;word-break:break-all;font-size:12px}
 #histBtn{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:10px;z-index:4;min-height:36px;padding:0 12px;font-size:13px}
 #pv{position:fixed;inset:0;z-index:7;background:var(--bg);display:flex;flex-direction:column}
+#pv.hide{display:none}
 #pv .hh{padding:calc(10px + env(safe-area-inset-top,0px)) 12px 8px;margin:0}
 #pv iframe{flex:1;width:100%;border:0;background:#fff}
 .screen.hide{display:none}
@@ -91,12 +92,6 @@ button{font:600 16px Barlow,system-ui,sans-serif;min-height:46px;padding:0 16px;
 <div id="hist" class="hide"></div>
 <div id="toast" class="hide" role="status"></div>
 <script>
-function showFatal(msg){
- let box=document.getElementById('fatalErr');
- if(!box){box=document.createElement('div');box.id='fatalErr';box.style.cssText='position:fixed;inset:0;z-index:999;background:#fff;color:#c00;padding:16px;font:13px/1.4 monospace;white-space:pre-wrap;overflow:auto';document.body.appendChild(box)}
- box.textContent+=(box.textContent?'\n\n':'Algo falló al cargar la app. Envía este texto:\n\n')+msg}
-window.addEventListener('error',e=>showFatal('Error: '+e.message+' ('+(e.filename||'').split('/').pop()+':'+(e.lineno||'')+':'+(e.colno||'')+')'));
-window.addEventListener('unhandledrejection',e=>showFatal('Error no controlado: '+(e.reason&&(e.reason.message||e.reason)||e.reason)));
 const $=s=>document.querySelector(s),pads={},K='blastDraft';
 const ROCKS={Igneous:["Andesite","Anorthosite","Basalt","Diabase (dolerite)","Diorite","Gabbro","Granite","Granodiorite","Kimberlite","Monzonite","Pegmatite","Peridotite","Rhyolite","Syenite","Tonalite","Tuff"],
 Sedimentary:["Chert","Coal","Conglomerate","Dolostone","Greywacke","Gypsum / Anhydrite","Iron formation","Limestone","Mudstone","Sandstone","Shale","Siltstone"],
@@ -140,12 +135,8 @@ function pad(id,w,h,cols){
 
 /* ---------- Sketch editor: editable objects (pen / arrow+label / text / hole / move-delete) ---------- */
 function sketchEditor(){
- const W=1400,H=686;
- const box=el('div',{style:'position:relative;overflow:hidden;border:2px solid var(--ink);border-radius:4px;background:#fff;touch-action:none;aspect-ratio:'+W+'/'+H});
+ const W=800,H=392;
  const canvas=el('canvas',{width:W,height:H,class:'pad grid'});
- canvas.style.border='0';canvas.style.borderRadius='0';canvas.style.height='100%';canvas.style.transformOrigin='0 0';
- const north=el('img',{src:IMG.compass,alt:'North',style:'position:absolute;top:4px;right:4px;width:11%;height:auto;pointer-events:none;opacity:.9'});
- box.append(canvas,north);
  const ctx=canvas.getContext('2d');
  function measure(o){ctx.font=(W*0.022*(SK.compact?0.6:1))+'px Barlow, sans-serif';return ctx.measureText(o.text||'').width}
  function bbox(o){
@@ -199,37 +190,9 @@ function sketchEditor(){
   else if(SK.tool=='hole')askText('',val=>{if(val!=null){SK.objs.push({type:'hole',color:SK.color,x:p.x,y:p.y,label:(val||'').trim()});redraw();later()}});
   else if(SK.tool=='select'){SK.dragOffset=null;if(SK.sel>=0)later()}
   downPt=null}
- function cancelDraw(){SK.cur=null;SK.arrowStart=null;SK._preview=null;SK.dragOffset=null;downPt=null;redraw()}
- // two-finger pinch-zoom / pan on the box; one finger draws (dispatched above)
- let tScale=1,tX=0,tY=0;const MIN_S=1,MAX_S=4;
- function applyTransform(){canvas.style.transform='translate('+tX+'px,'+tY+'px) scale('+tScale+')'}
- function clamp(){const bw=box.clientWidth,bh=box.clientHeight;tX=Math.min(0,Math.max(bw-bw*tScale,tX));tY=Math.min(0,Math.max(bh-bh*tScale,tY))}
- const active=new Map();let pinch=null;
- const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y),mid=(a,b)=>({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
- box.addEventListener('pointerdown',e=>{
-  try{box.setPointerCapture(e.pointerId)}catch(err){}
-  active.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if(active.size===1)handleDown(e);
-  else if(active.size===2){
-   cancelDraw();
-   const pts=[...active.values()],r=box.getBoundingClientRect();
-   const m0=mid(pts[0],pts[1]),sMid={x:m0.x-r.left,y:m0.y-r.top};
-   pinch={startDist:dist(pts[0],pts[1]),originScale:tScale,originTX:tX,originTY:tY,contentPt:{x:(sMid.x-tX)/tScale,y:(sMid.y-tY)/tScale}}}});
- box.addEventListener('pointermove',e=>{
-  if(!active.has(e.pointerId))return;active.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if(active.size===1)handleMove(e);
-  else if(active.size===2&&pinch){
-   const pts=[...active.values()],r=box.getBoundingClientRect();
-   const newDist=dist(pts[0],pts[1]),m0=mid(pts[0],pts[1]),newMid={x:m0.x-r.left,y:m0.y-r.top};
-   let ns=pinch.originScale*(newDist/pinch.startDist);ns=Math.max(MIN_S,Math.min(MAX_S,ns));
-   tScale=ns;tX=newMid.x-pinch.contentPt.x*ns;tY=newMid.y-pinch.contentPt.y*ns;clamp();applyTransform()}});
- function endPointer(e){
-  if(!active.has(e.pointerId))return;
-  const was=active.size;active.delete(e.pointerId);
-  if(was===1)handleUp(e);
-  if(active.size<2)pinch=null}
- box.addEventListener('pointerup',endPointer);
- box.addEventListener('pointercancel',endPointer);
+ canvas.onpointerdown=e=>{try{canvas.setPointerCapture(e.pointerId)}catch(err){}handleDown(e)};
+ canvas.onpointermove=handleMove;
+ canvas.onpointerup=canvas.onpointercancel=handleUp;
  const tb=el('div',{class:'tabs'});
  [['pen','Pen'],['arrow','Arrow'],['text','Text'],['hole','Hole'],['select','Move/Delete']].forEach(([t,label])=>{
   const b=el('button',{type:'button',class:'tab'+(t==SK.tool?' on':''),'data-t':t},label);
@@ -240,11 +203,10 @@ function sketchEditor(){
  row.append(btn('Delete selected',()=>{if(SK.sel>=0){SK.objs.splice(SK.sel,1);SK.sel=-1;redraw();later()}}));
  const compactBtn=btn(SK.compact?'Normal symbols':'Small symbols',()=>{SK.compact=!SK.compact;compactBtn.textContent=SK.compact?'Normal symbols':'Small symbols';redraw()});
  row.append(compactBtn);
- row.append(btn('Reset zoom',()=>{tScale=1;tX=0;tY=0;applyTransform()}));
  row.append(btn('Clear all',()=>{SK.objs=[];SK.sel=-1;redraw();later()}));
  pads.sk={c:canvas,clr:()=>{SK.objs=[];SK.sel=-1;redraw()},load:null,redraw};
  redraw();
- return el('div',{class:'s2'},el('p',{class:'hint'},'Pen: draw freehand. Arrow: drag, then type the time label. Text / Hole: tap to place. Move/Delete: tap an item to select, then drag or delete it. Pinch with two fingers to zoom in for tight areas, then use Reset zoom to see the whole sketch again.'),tb,box,row)}
+ return el('div',{class:'s2'},el('p',{class:'hint'},'Pen: draw freehand. Arrow: drag, then type the time label. Text / Hole: tap to place. Move/Delete: tap an item to select, then drag or delete it.'),tb,canvas,row)}
 
 const subs=(n,name,mk)=>Array.from({length:n},(_,j)=>{const i=j+1,s=el('div',{class:'sub'},el('h3',{},name+' '+i)),g=el('div',{class:'g'});mk(i).forEach(f=>g.append(f));s.append(g);return s});
 
@@ -434,6 +396,7 @@ async function previewPDF(){
   const url=URL.createObjectURL(doc.output('blob'));
   showPreview(url)
  }catch(e){toast('Error: '+(e&&e.message||e))}}
+
 const chkf=el('input',{type:'file',accept:'application/pdf',class:'hide'});document.body.append(chkf);
 chkf.onchange=async()=>{const f=chkf.files[0];if(!f)return;const hh=await sha(f),m=(await tx('reports','readonly',s=>s.getAll())).find(r=>r.hash==hh);toast(m?'Match: identical to saved report '+m.id:'No match: not an unchanged copy of any saved report');chkf.value=''};
 async function showHist(){
@@ -616,6 +579,5 @@ let fin=0;$('#go').onclick=async function(){
 
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
-seedIfEmpty().finally(()=>{showScreen('scr-setup');renderSetup()}).catch(e=>showFatal('Error al iniciar: '+(e&&e.message||e)));
-setTimeout(()=>{if(!$('#setup').children.length)showFatal('La app tardó demasiado en cargar (posible bloqueo de la base de datos local). Cierra todas las demás pestañas/ventanas de este sitio e intenta de nuevo.')},6000);
+seedIfEmpty().finally(()=>{showScreen('scr-setup');renderSetup()});
 </script></body></html>
