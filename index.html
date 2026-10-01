@@ -91,6 +91,12 @@ button{font:600 16px Barlow,system-ui,sans-serif;min-height:46px;padding:0 16px;
 <div id="hist" class="hide"></div>
 <div id="toast" class="hide" role="status"></div>
 <script>
+function showFatal(msg){
+ let box=document.getElementById('fatalErr');
+ if(!box){box=document.createElement('div');box.id='fatalErr';box.style.cssText='position:fixed;inset:0;z-index:999;background:#fff;color:#c00;padding:16px;font:13px/1.4 monospace;white-space:pre-wrap;overflow:auto';document.body.appendChild(box)}
+ box.textContent+=(box.textContent?'\n\n':'Algo falló al cargar la app. Envía este texto:\n\n')+msg}
+window.addEventListener('error',e=>showFatal('Error: '+e.message+' ('+(e.filename||'').split('/').pop()+':'+(e.lineno||'')+':'+(e.colno||'')+')'));
+window.addEventListener('unhandledrejection',e=>showFatal('Error no controlado: '+(e.reason&&(e.reason.message||e.reason)||e.reason)));
 const $=s=>document.querySelector(s),pads={},K='blastDraft';
 const ROCKS={Igneous:["Andesite","Anorthosite","Basalt","Diabase (dolerite)","Diorite","Gabbro","Granite","Granodiorite","Kimberlite","Monzonite","Pegmatite","Peridotite","Rhyolite","Syenite","Tonalite","Tuff"],
 Sedimentary:["Chert","Coal","Conglomerate","Dolostone","Greywacke","Gypsum / Anhydrite","Iron formation","Limestone","Mudstone","Sandstone","Shale","Siltstone"],
@@ -610,5 +616,6 @@ let fin=0;$('#go').onclick=async function(){
 
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
-seedIfEmpty().finally(()=>{showScreen('scr-setup');renderSetup()});
+seedIfEmpty().finally(()=>{showScreen('scr-setup');renderSetup()}).catch(e=>showFatal('Error al iniciar: '+(e&&e.message||e)));
+setTimeout(()=>{if(!$('#setup').children.length)showFatal('La app tardó demasiado en cargar (posible bloqueo de la base de datos local). Cierra todas las demás pestañas/ventanas de este sitio e intenta de nuevo.')},6000);
 </script></body></html>
