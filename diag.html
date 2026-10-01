@@ -1,0 +1,44 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diagnóstico</title>
+<style>body{font:16px/1.4 sans-serif;padding:16px;background:#fff;color:#111}
+.ok{color:#0a7a2f}.bad{color:#c62828;font-weight:700}
+div{margin:6px 0;padding:6px;border-bottom:1px solid #ddd}</style>
+</head><body>
+<h1>Diagnóstico Blast Report</h1>
+<div id="out">Ejecutando pruebas...</div>
+<script>
+const out=document.getElementById('out');
+const rows=[];
+function test(name,fn){try{const r=fn();rows.push('<div>'+name+': <span class="'+(r?'ok':'bad')+'">'+(r?'OK':'FALLA')+'</span></div>')}
+ catch(e){rows.push('<div>'+name+': <span class="bad">ERROR — '+ (e&&e.message||e) +'</span></div>')}}
+
+test('JavaScript básico corre', ()=>true);
+test('Chrome / navigator.userAgent', ()=>{rows.push('<div style="color:#555;font-size:13px">'+navigator.userAgent+'</div>');return true});
+test('document.body.replaceChildren', ()=>{const d=document.createElement('div');d.replaceChildren(document.createElement('span'));return true});
+test('Optional chaining (?.)', ()=>{const o={a:1};return (o?.a)===1});
+test('Nullish coalescing (??)', ()=>{return (null??5)===5});
+test('CSS aspect-ratio soportado', ()=>CSS.supports('aspect-ratio','1/1'));
+test('CSS env() soportado', ()=>CSS.supports('padding-top','env(safe-area-inset-top,0px)'));
+test('IndexedDB disponible', ()=>!!window.indexedDB);
+test('crypto.randomUUID', ()=>typeof crypto!=='undefined' && typeof crypto.randomUUID==='function');
+test('crypto.subtle (SHA-256)', ()=>typeof crypto!=='undefined' && !!crypto.subtle);
+test('Pointer Events', ()=>typeof PointerEvent!=='undefined');
+test('Canvas 2D', ()=>{const c=document.createElement('canvas');return !!c.getContext('2d')});
+test('localStorage', ()=>{localStorage.setItem('x','1');return localStorage.getItem('x')==='1'});
+test('fetch()', ()=>typeof fetch==='function');
+test('Service Worker API', ()=>'serviceWorker' in navigator);
+test('canvas.toDataURL', ()=>{const c=document.createElement('canvas');return typeof c.toDataURL==='function' && c.toDataURL().indexOf('data:')===0});
+
+// Carga real del jsPDF externo (igual que la app)
+const s=document.createElement('script');
+s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+s.onload=()=>{rows.push('<div>Carga de jsPDF (CDN externo): <span class="ok">OK</span></div>');render()};
+s.onerror=()=>{rows.push('<div>Carga de jsPDF (CDN externo): <span class="bad">FALLA — bloqueado por la red/navegador</span></div>');render()};
+document.head.appendChild(s);
+
+function render(){out.innerHTML=rows.join('')}
+render();
+setTimeout(render,3000);
+</script>
+</body></html>
