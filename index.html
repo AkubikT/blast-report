@@ -384,17 +384,20 @@ async function out(b,n){const f=new File([b],n,{type:'application/pdf'});
 
 /* ---------- History ---------- */
 const H=el('div',{id:'hist',class:'hide'});document.body.append(H);
-const PV=el('div',{id:'pv',class:'hide'});document.body.append(PV);
-function showPreview(url){
- const ifr=el('iframe',{src:url,title:'PDF preview'});
- PV.replaceChildren(el('div',{class:'hh'},el('h1',{},'Preview (not saved)'),btn('Close',()=>{PV.classList.add('hide');PV.replaceChildren();URL.revokeObjectURL(url)})),ifr);
- PV.classList.remove('hide')}
+function stampPreview(doc){
+ const n=doc.internal.getNumberOfPages();
+ for(let i=1;i<=n;i++){doc.setPage(i);
+  doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(200,0,0);
+  doc.text('PREVIEW — NOT FINAL (not saved to history)',108,277.5,{align:'center'})}}
 async function previewPDF(){
  try{
-  const v=collect();v._companyLogo=ST.company?ST.company.logo:null;v._id='PREVIEW — not final';v._created=new Date().toISOString();
+  const v=collect();v._companyLogo=ST.company?ST.company.logo:null;v._id='PREVIEW — NOT FINAL';v._created=new Date().toISOString();
   const doc=finalizeDoc(v,EX);
-  const url=URL.createObjectURL(doc.output('blob'));
-  showPreview(url)
+  stampPreview(doc);
+  const blob=doc.output('blob');
+  const nm=('PREVIEW_'+(v.date||'nodate')+(v.blastNo?'_'+v.blastNo:'')+'.pdf').replace(/[^\w.-]+/g,'_');
+  toast('Opening preview — nothing is saved yet');
+  await out(blob,nm)
  }catch(e){toast('Error: '+(e&&e.message||e))}}
 
 const chkf=el('input',{type:'file',accept:'application/pdf',class:'hide'});document.body.append(chkf);
