@@ -52,6 +52,10 @@ button{font:600 16px Barlow,system-ui,sans-serif;min-height:46px;padding:0 16px;
 #histBtn{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:10px;z-index:4;min-height:36px;padding:0 12px;font-size:13px}
 #pv{position:fixed;inset:0;z-index:7;background:var(--bg);display:flex;flex-direction:column}
 #pv.hide{display:none}
+#skfs{position:fixed;inset:0;z-index:7;background:var(--bg);display:flex;flex-direction:column}
+#skfs.hide{display:none}
+#skfs .hh{padding:calc(10px + env(safe-area-inset-top,0px)) 12px 8px;margin:0}
+#skfs-body{flex:1;overflow:auto;padding:0 12px calc(12px + env(safe-area-inset-bottom,0px))}
 #pv .hh{padding:calc(10px + env(safe-area-inset-top,0px)) 12px 8px;margin:0}
 #pv iframe{flex:1;width:100%;border:0;background:#fff}
 .screen.hide{display:none}
@@ -206,7 +210,16 @@ function sketchEditor(){
  row.append(btn('Clear all',()=>{SK.objs=[];SK.sel=-1;redraw();later()}));
  pads.sk={c:canvas,clr:()=>{SK.objs=[];SK.sel=-1;redraw()},load:null,redraw};
  redraw();
- return el('div',{class:'s2'},el('p',{class:'hint'},'Pen: draw freehand. Arrow: drag, then type the time label. Text / Hole: tap to place. Move/Delete: tap an item to select, then drag or delete it.'),tb,canvas,row)}
+ const inlineHolder=el('div',{class:'s2'});
+ const fsOverlay=el('div',{id:'skfs',class:'hide'});
+ const fsBody=el('div',{id:'skfs-body'});
+ function openFullscreen(){fsBody.append(tb,canvas,row);fsOverlay.classList.remove('hide');redraw()}
+ function closeFullscreen(){inlineHolder.append(tb,canvas,row);fsOverlay.classList.add('hide');redraw()}
+ fsOverlay.append(el('div',{class:'hh'},el('h1',{},'Sketch'),btn('Done',closeFullscreen)),fsBody);
+ document.body.append(fsOverlay);
+ row.append(btn('Expand ⤢',openFullscreen));
+ inlineHolder.append(el('p',{class:'hint'},'Pen: draw freehand. Arrow: drag, then type the time label. Text / Hole: tap to place. Move/Delete: tap an item to select, then drag or delete it.'),tb,canvas,row);
+ return inlineHolder}
 
 const subs=(n,name,mk)=>Array.from({length:n},(_,j)=>{const i=j+1,s=el('div',{class:'sub'},el('h3',{},name+' '+i)),g=el('div',{class:'g'});mk(i).forEach(f=>g.append(f));s.append(g);return s});
 
