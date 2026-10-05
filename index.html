@@ -148,18 +148,17 @@ function sketchEditor(){
   if(o.type=='arrow')return{x:Math.min(o.x1,o.x2),y:Math.min(o.y1,o.y2),w:Math.abs(o.x2-o.x1)||1,h:Math.abs(o.y2-o.y1)||1};
   if(o.type=='text')return{x:o.x,y:o.y-W*0.02,w:measure(o)||W*0.05,h:W*0.026};
   const r=W*0.014*(SK.compact?0.6:1);return{x:o.x-r,y:o.y-r,w:r*2,h:r*2}}
- function drawArrow(c,x1,y1,x2,y2,color){
-  c.strokeStyle=color;c.lineWidth=W*0.0025;c.beginPath();c.moveTo(x1,y1);c.lineTo(x2,y2);c.stroke();
-  const ang=Math.atan2(y2-y1,x2-x1),hl=W*0.02;
+ function drawArrow(c,x1,y1,x2,y2,color,cm){
+  c.strokeStyle=color;c.lineWidth=W*0.0025*cm;c.beginPath();c.moveTo(x1,y1);c.lineTo(x2,y2);c.stroke();
+  const ang=Math.atan2(y2-y1,x2-x1),hl=W*0.02*cm;
   c.beginPath();c.moveTo(x2,y2);c.lineTo(x2-hl*Math.cos(ang-Math.PI/6),y2-hl*Math.sin(ang-Math.PI/6));c.lineTo(x2-hl*Math.cos(ang+Math.PI/6),y2-hl*Math.sin(ang+Math.PI/6));c.closePath();c.fillStyle=color;c.fill()}
  function drawObj(c,o,selected){
   const cm=SK.compact?0.6:1;
   c.lineCap='round';c.lineJoin='round';
   if(o.type=='stroke'){c.strokeStyle=o.color;c.lineWidth=W*0.0075;c.beginPath();o.pts.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.stroke()}
-  else if(o.type=='arrow'){drawArrow(c,o.x1,o.y1,o.x2,o.y2,o.color);if(o.label){c.fillStyle=o.color;c.font=(W*0.02*cm)+'px Barlow, sans-serif';c.fillText(o.label,(o.x1+o.x2)/2+6,(o.y1+o.y2)/2-6)}}
+  else if(o.type=='arrow'){drawArrow(c,o.x1,o.y1,o.x2,o.y2,o.color,cm)}
   else if(o.type=='text'){c.fillStyle=o.color;c.font=(W*0.022*cm)+'px Barlow, sans-serif';c.fillText(o.text,o.x,o.y)}
-  else if(o.type=='hole'){const r=W*0.014*cm;c.strokeStyle=o.color;c.lineWidth=W*0.0025;c.beginPath();c.arc(o.x,o.y,r,0,7);c.stroke();
-   c.fillStyle=o.color;c.font=(W*0.016*cm)+'px Barlow, sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(o.label||'',o.x,o.y);c.textAlign='left';c.textBaseline='alphabetic'}
+  else if(o.type=='hole'){const r=W*0.014*cm;c.strokeStyle=o.color;c.lineWidth=W*0.0025;c.beginPath();c.arc(o.x,o.y,r,0,7);c.stroke()}
   if(selected){c.save();c.strokeStyle='#00b3ff';c.setLineDash([6,4]);c.lineWidth=2;const b=bbox(o);c.strokeRect(b.x-6,b.y-6,b.w+12,b.h+12);c.restore()}}
  function redraw(){ctx.clearRect(0,0,W,H);SK.objs.forEach((o,i)=>drawObj(ctx,o,i===SK.sel));if(SK._preview)drawObj(ctx,SK._preview,false);if(SK.cur)drawObj(ctx,SK.cur,false)}
  function hit(p){for(let i=SK.objs.length-1;i>=0;i--){const b=bbox(SK.objs[i]);if(p.x>=b.x-8&&p.x<=b.x+b.w+8&&p.y>=b.y-8&&p.y<=b.y+b.h+8)return i}return -1}
@@ -188,10 +187,10 @@ function sketchEditor(){
   else if(SK.tool=='select'&&SK.sel>=0&&SK.dragOffset){moveObj(SK.objs[SK.sel],p,SK.dragOffset);redraw()}}
  function handleUp(e){const p=ptFromEvent(e);
   if(SK.tool=='pen'&&SK.cur){if(SK.cur.pts.length>1)SK.objs.push(SK.cur);SK.cur=null;redraw();later()}
-  else if(SK.tool=='arrow'&&SK.arrowStart){const ar={type:'arrow',color:SK.color,x1:SK.arrowStart.x,y1:SK.arrowStart.y,x2:p.x,y2:p.y,label:''};SK.arrowStart=null;SK._preview=null;
-   if(Math.hypot(ar.x2-ar.x1,ar.y2-ar.y1)>8)askText('',val=>{if(val!=null){ar.label=(val||'').trim();SK.objs.push(ar);redraw();later()}else redraw()});else redraw()}
+  else if(SK.tool=='arrow'&&SK.arrowStart){const ar={type:'arrow',color:SK.color,x1:SK.arrowStart.x,y1:SK.arrowStart.y,x2:p.x,y2:p.y};SK.arrowStart=null;SK._preview=null;
+   if(Math.hypot(ar.x2-ar.x1,ar.y2-ar.y1)>8){SK.objs.push(ar);later()}redraw()}
   else if(SK.tool=='text')askText('',val=>{if(val){SK.objs.push({type:'text',color:SK.color,x:p.x,y:p.y,text:val});redraw();later()}});
-  else if(SK.tool=='hole')askText('',val=>{if(val!=null){SK.objs.push({type:'hole',color:SK.color,x:p.x,y:p.y,label:(val||'').trim()});redraw();later()}});
+  else if(SK.tool=='hole'){SK.objs.push({type:'hole',color:SK.color,x:p.x,y:p.y});redraw();later()}
   else if(SK.tool=='select'){SK.dragOffset=null;if(SK.sel>=0)later()}
   downPt=null}
  canvas.onpointerdown=e=>{try{canvas.setPointerCapture(e.pointerId)}catch(err){}handleDown(e)};
@@ -218,7 +217,7 @@ function sketchEditor(){
  fsOverlay.append(el('div',{class:'hh'},el('h1',{},'Sketch'),btn('Done',closeFullscreen)),fsBody);
  document.body.append(fsOverlay);
  row.append(btn('Expand ⤢',openFullscreen));
- inlineHolder.append(el('p',{class:'hint'},'Pen: draw freehand. Arrow: drag, then type the time label. Text / Hole: tap to place. Move/Delete: tap an item to select, then drag or delete it.'),tb,canvas,row);
+ inlineHolder.append(el('p',{class:'hint'},'Pen: draw freehand. Arrow: drag to draw. Hole: tap to place a circle. Text: tap to place a label (e.g. a time like 68ms). Move/Delete: tap an item to select, then drag or delete it.'),tb,canvas,row);
  return inlineHolder}
 
 const subs=(n,name,mk)=>Array.from({length:n},(_,j)=>{const i=j+1,s=el('div',{class:'sub'},el('h3',{},name+' '+i)),g=el('div',{class:'g'});mk(i).forEach(f=>g.append(f));s.append(g);return s});
