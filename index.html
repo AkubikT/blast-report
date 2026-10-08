@@ -65,6 +65,9 @@ button{font:600 16px Barlow,system-ui,sans-serif;min-height:46px;padding:0 16px;
 .tabs{display:flex;gap:8px;overflow-x:auto;margin-bottom:10px;padding-bottom:2px}
 .tab{padding:8px 14px;border-radius:999px;border:2px solid var(--line);background:var(--card);white-space:nowrap;min-height:38px}
 .tab.on{border-color:var(--ink);background:var(--acc)}
+.ibtn{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:54px;min-height:54px;padding:4px;font:600 10px Barlow,system-ui,sans-serif;line-height:1.1;border-radius:8px;flex:none}
+.ibtn svg{display:block}
+.ibtn.on{border-color:var(--ink);background:var(--acc)}
 .thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 .thumb{position:relative;width:96px;height:96px;border:1px solid var(--line);border-radius:6px;overflow:hidden}
 .thumb img{width:100%;height:100%;object-fit:cover;display:block}
@@ -142,71 +145,102 @@ function sketchEditor(){
  const W=800,H=392;
  const canvas=el('canvas',{width:W,height:H,class:'pad grid'});
  const ctx=canvas.getContext('2d');
- function measure(o){ctx.font=(W*0.022*(SK.compact?0.6:1))+'px Barlow, sans-serif';return ctx.measureText(o.text||'').width}
+ function measure(o){ctx.font=(W*0.022*(o.small?0.6:1))+'px Barlow, sans-serif';return ctx.measureText(o.text||'').width}
  function bbox(o){
   if(o.type=='stroke'){const xs=o.pts.map(p=>p.x),ys=o.pts.map(p=>p.y);return{x:Math.min(...xs),y:Math.min(...ys),w:Math.max(...xs)-Math.min(...xs)||1,h:Math.max(...ys)-Math.min(...ys)||1}}
-  if(o.type=='arrow')return{x:Math.min(o.x1,o.x2),y:Math.min(o.y1,o.y2),w:Math.abs(o.x2-o.x1)||1,h:Math.abs(o.y2-o.y1)||1};
+  if(o.type=='arrow'||o.type=='textArrow')return{x:Math.min(o.x1,o.x2),y:Math.min(o.y1,o.y2),w:Math.abs(o.x2-o.x1)||1,h:Math.abs(o.y2-o.y1)||1};
   if(o.type=='text')return{x:o.x,y:o.y-W*0.02,w:measure(o)||W*0.05,h:W*0.026};
-  const r=W*0.014*(SK.compact?0.6:1);return{x:o.x-r,y:o.y-r,w:r*2,h:r*2}}
+  const r=W*0.014*(o.small?0.6:1);return{x:o.x-r,y:o.y-r,w:r*2,h:r*2}}
  function drawArrow(c,x1,y1,x2,y2,color,cm){
   c.strokeStyle=color;c.lineWidth=W*0.0025*cm;c.beginPath();c.moveTo(x1,y1);c.lineTo(x2,y2);c.stroke();
   const ang=Math.atan2(y2-y1,x2-x1),hl=W*0.02*cm;
   c.beginPath();c.moveTo(x2,y2);c.lineTo(x2-hl*Math.cos(ang-Math.PI/6),y2-hl*Math.sin(ang-Math.PI/6));c.lineTo(x2-hl*Math.cos(ang+Math.PI/6),y2-hl*Math.sin(ang+Math.PI/6));c.closePath();c.fillStyle=color;c.fill()}
  function drawObj(c,o,selected){
-  const cm=SK.compact?0.6:1;
+  const cm=o.small?0.6:1;
   c.lineCap='round';c.lineJoin='round';
   if(o.type=='stroke'){c.strokeStyle=o.color;c.lineWidth=W*0.0075;c.beginPath();o.pts.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.stroke()}
   else if(o.type=='arrow'){drawArrow(c,o.x1,o.y1,o.x2,o.y2,o.color,cm)}
+  else if(o.type=='textArrow'){drawArrow(c,o.x1,o.y1,o.x2,o.y2,o.color,cm);if(o.label){c.fillStyle=o.color;c.font=(W*0.02*cm)+'px Barlow, sans-serif';c.textAlign='center';c.fillText(o.label,(o.x1+o.x2)/2,(o.y1+o.y2)/2-6);c.textAlign='left'}}
   else if(o.type=='text'){c.fillStyle=o.color;c.font=(W*0.022*cm)+'px Barlow, sans-serif';c.fillText(o.text,o.x,o.y)}
   else if(o.type=='hole'){const r=W*0.014*cm;c.strokeStyle=o.color;c.lineWidth=W*0.0025;c.beginPath();c.arc(o.x,o.y,r,0,7);c.stroke()}
+  else if(o.type=='numHole'){const r=W*0.014*cm;c.strokeStyle=o.color;c.lineWidth=W*0.0025;c.beginPath();c.arc(o.x,o.y,r,0,7);c.stroke();
+   c.fillStyle=o.color;c.font=(W*0.016*cm)+'px Barlow, sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(o.label||'',o.x,o.y);c.textAlign='left';c.textBaseline='alphabetic'}
   if(selected){c.save();c.strokeStyle='#00b3ff';c.setLineDash([6,4]);c.lineWidth=2;const b=bbox(o);c.strokeRect(b.x-6,b.y-6,b.w+12,b.h+12);c.restore()}}
  function redraw(){ctx.clearRect(0,0,W,H);SK.objs.forEach((o,i)=>drawObj(ctx,o,i===SK.sel));if(SK._preview)drawObj(ctx,SK._preview,false);if(SK.cur)drawObj(ctx,SK.cur,false)}
  function hit(p){for(let i=SK.objs.length-1;i>=0;i--){const b=bbox(SK.objs[i]);if(p.x>=b.x-8&&p.x<=b.x+b.w+8&&p.y>=b.y-8&&p.y<=b.y+b.h+8)return i}return -1}
  function ptFromEvent(e){const r=canvas.getBoundingClientRect();return{x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height}}
  function offsetFor(o,p){if(o.type=='stroke')return{dx:p.x-o.pts[0].x,dy:p.y-o.pts[0].y,base:o.pts.map(q=>({x:q.x,y:q.y}))};
-  if(o.type=='arrow')return{dx:p.x-o.x1,dy:p.y-o.y1,x1:o.x1,y1:o.y1,x2:o.x2,y2:o.y2};
+  if(o.type=='arrow'||o.type=='textArrow')return{dx:p.x-o.x1,dy:p.y-o.y1,x1:o.x1,y1:o.y1,x2:o.x2,y2:o.y2};
   return{dx:p.x-o.x,dy:p.y-o.y,x:o.x,y:o.y}}
  function moveObj(o,p,off){
   if(o.type=='stroke'){const dx=p.x-off.dx-off.base[0].x,dy=p.y-off.dy-off.base[0].y;o.pts=off.base.map(q=>({x:q.x+dx,y:q.y+dy}))}
-  else if(o.type=='arrow'){const dx=p.x-off.dx-off.x1,dy=p.y-off.dy-off.y1;o.x1=off.x1+dx;o.y1=off.y1+dy;o.x2=off.x2+dx;o.y2=off.y2+dy}
+  else if(o.type=='arrow'||o.type=='textArrow'){const dx=p.x-off.dx-off.x1,dy=p.y-off.dy-off.y1;o.x1=off.x1+dx;o.y1=off.y1+dy;o.x2=off.x2+dx;o.y2=off.y2+dy}
   else{o.x=p.x-off.dx;o.y=p.y-off.dy}}
  function askText(defVal,cb){
   const bar=el('div',{style:'position:fixed;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:8;display:flex;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px'});
   const inp=el('input',{type:'text'});inp.value=defVal||'';
   bar.append(inp,btn('OK',()=>{document.body.removeChild(bar);cb(inp.value)}),btn('Cancel',()=>{document.body.removeChild(bar);cb(null)}));
   document.body.append(bar);inp.focus()}
- // single-finger drawing (pen / arrow / text / hole / select) — dispatched by the pointer-count logic below
+ // single-finger drawing — dispatched by the pointer-count logic below
  let downPt=null;
  function handleDown(e){e.preventDefault();const p=ptFromEvent(e);downPt=p;
-  if(SK.tool=='pen')SK.cur={type:'stroke',color:SK.color,pts:[p]};
-  else if(SK.tool=='arrow')SK.arrowStart=p;
+  if(SK.tool=='pen')SK.cur={type:'stroke',color:SK.color,small:SK.compact,pts:[p]};
+  else if(SK.tool=='arrow'||SK.tool=='textArrow')SK.arrowStart=p;
   else if(SK.tool=='select'){const idx=hit(p);SK.sel=idx;SK.dragOffset=idx>=0?offsetFor(SK.objs[idx],p):null;redraw()}}
  function handleMove(e){if(!downPt)return;const p=ptFromEvent(e);
   if(SK.tool=='pen'&&SK.cur){SK.cur.pts.push(p);redraw()}
-  else if(SK.tool=='arrow'&&SK.arrowStart){SK._preview={type:'arrow',color:SK.color,x1:SK.arrowStart.x,y1:SK.arrowStart.y,x2:p.x,y2:p.y};redraw()}
+  else if((SK.tool=='arrow'||SK.tool=='textArrow')&&SK.arrowStart){SK._preview={type:'arrow',color:SK.color,x1:SK.arrowStart.x,y1:SK.arrowStart.y,x2:p.x,y2:p.y};redraw()}
   else if(SK.tool=='select'&&SK.sel>=0&&SK.dragOffset){moveObj(SK.objs[SK.sel],p,SK.dragOffset);redraw()}}
  function handleUp(e){const p=ptFromEvent(e);
   if(SK.tool=='pen'&&SK.cur){if(SK.cur.pts.length>1)SK.objs.push(SK.cur);SK.cur=null;redraw();later()}
-  else if(SK.tool=='arrow'&&SK.arrowStart){const ar={type:'arrow',color:SK.color,x1:SK.arrowStart.x,y1:SK.arrowStart.y,x2:p.x,y2:p.y};SK.arrowStart=null;SK._preview=null;
+  else if(SK.tool=='arrow'&&SK.arrowStart){const ar={type:'arrow',color:SK.color,small:SK.compact,x1:SK.arrowStart.x,y1:SK.arrowStart.y,x2:p.x,y2:p.y};SK.arrowStart=null;SK._preview=null;
    if(Math.hypot(ar.x2-ar.x1,ar.y2-ar.y1)>8){SK.objs.push(ar);later()}redraw()}
-  else if(SK.tool=='text')askText('',val=>{if(val){SK.objs.push({type:'text',color:SK.color,x:p.x,y:p.y,text:val});redraw();later()}});
-  else if(SK.tool=='hole'){SK.objs.push({type:'hole',color:SK.color,x:p.x,y:p.y});redraw();later()}
+  else if(SK.tool=='textArrow'&&SK.arrowStart){const ar={type:'textArrow',color:SK.color,small:SK.compact,x1:SK.arrowStart.x,y1:SK.arrowStart.y,x2:p.x,y2:p.y,label:''};SK.arrowStart=null;SK._preview=null;
+   if(Math.hypot(ar.x2-ar.x1,ar.y2-ar.y1)>8)askText('',val=>{if(val!=null){ar.label=(val||'').trim();SK.objs.push(ar);redraw();later()}else redraw()});else redraw()}
+  else if(SK.tool=='text')askText('',val=>{if(val){SK.objs.push({type:'text',color:SK.color,small:SK.compact,x:p.x,y:p.y,text:val});redraw();later()}});
+  else if(SK.tool=='hole'){SK.objs.push({type:'hole',color:SK.color,small:SK.compact,x:p.x,y:p.y});redraw();later()}
+  else if(SK.tool=='numHole')askText('',val=>{if(val!=null){SK.objs.push({type:'numHole',color:SK.color,small:SK.compact,x:p.x,y:p.y,label:(val||'').trim()});redraw();later()}});
   else if(SK.tool=='select'){SK.dragOffset=null;if(SK.sel>=0)later()}
   downPt=null}
  canvas.onpointerdown=e=>{try{canvas.setPointerCapture(e.pointerId)}catch(err){}handleDown(e)};
  canvas.onpointermove=handleMove;
  canvas.onpointerup=canvas.onpointercancel=handleUp;
+
+ const SVGI={
+  pen:'<path d="M4 20l1-4L17 4l3 3L8 19z"/><path d="M15 6l3 3"/>',
+  arrow:'<line x1="4" y1="20" x2="20" y2="4"/><polyline points="11 4 20 4 20 13"/>',
+  textArrow:'<line x1="3" y1="20" x2="15" y2="8"/><polyline points="8 8 15 8 15 15"/><text x="15" y="21" font-size="10" font-weight="700" fill="currentColor" stroke="none">T</text>',
+  text:'<text x="12" y="18" font-size="16" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none">T</text>',
+  hole:'<circle cx="12" cy="12" r="8"/>',
+  numHole:'<circle cx="12" cy="12" r="8"/><text x="12" y="16" font-size="9" text-anchor="middle" fill="currentColor" stroke="none">#</text>',
+  move:'<line x1="12" y1="3" x2="12" y2="21"/><polyline points="8 7 12 3 16 7"/><polyline points="8 17 12 21 16 17"/><line x1="3" y1="12" x2="21" y2="12"/><polyline points="7 8 3 12 7 16"/><polyline points="17 8 21 12 17 16"/>',
+  undo:'<path d="M3 11a8 8 0 1 1 2.6 5.9"/><polyline points="3 5 3 11 9 11"/>',
+  del:'<path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/>',
+  expand:'<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>',
+  sizeBig:'<line x1="12" y1="20" x2="12" y2="5"/><polyline points="6 11 12 5 18 11"/>',
+  sizeSmall:'<line x1="12" y1="15" x2="12" y2="9"/><polyline points="9 12 12 9 15 12"/><line x1="7" y1="19" x2="17" y2="19"/>'
+ };
+ function svg(path){return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+path+'</svg>'}
+ function iconBtn(key,label,onClick,isOn){
+  const b=el('button',{type:'button',class:'ibtn'+(isOn?' on':'')});
+  const ic=el('span',{});ic.innerHTML=svg(SVGI[key]);
+  b.append(ic,el('span',{},label));b.onclick=onClick;return b}
+
  const tb=el('div',{class:'tabs'});
- [['pen','Pen'],['arrow','Arrow'],['text','Text'],['hole','Hole'],['select','Move/Delete']].forEach(([t,label])=>{
-  const b=el('button',{type:'button',class:'tab'+(t==SK.tool?' on':''),'data-t':t},label);
-  b.onclick=()=>{SK.tool=t;SK.sel=-1;tb.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));redraw()};tb.append(b)});
+ const TOOLS=[['pen','pen','Pen'],['arrow','arrow','Arrow'],['textArrow','textArrow','Text arrow'],['text','text','Text'],['hole','hole','Hole'],['numHole','numHole','Numbered hole'],['select','move','Move']];
+ function refreshTools(){tb.querySelectorAll('.ibtn[data-tool]').forEach(x=>x.classList.toggle('on',x.dataset.tool==SK.tool))}
+ TOOLS.forEach(([t,icon,label])=>{const b=iconBtn(icon,label,()=>{SK.tool=t;SK.sel=-1;refreshTools();redraw()},t==SK.tool);b.dataset.tool=t;tb.append(b)});
+ tb.append(iconBtn('undo','Undo',()=>{SK.objs.pop();SK.sel=-1;redraw();later()}));
+ tb.append(iconBtn('del','Delete',()=>{if(SK.sel>=0){SK.objs.splice(SK.sel,1);SK.sel=-1;redraw();later()}}));
+ const expandBtn=iconBtn('expand','Expand',()=>openFullscreen());
+ tb.append(expandBtn);
+
  const row=el('div',{class:'tools'});
+ const sizeBtn=iconBtn(SK.compact?'sizeSmall':'sizeBig','Size',()=>{SK.compact=!SK.compact;sizeBtn.replaceChildren();sizeBtn.classList.toggle('on',SK.compact);const ic=el('span',{});ic.innerHTML=svg(SVGI[SK.compact?'sizeSmall':'sizeBig']);sizeBtn.append(ic,el('span',{},'Size'))},SK.compact);
+ row.append(sizeBtn);
  SKCOLORS.forEach((c,i)=>{const b=el('button',{class:'sw'+(c==SK.color?' on':''),type:'button','aria-label':'Colour'});b.style.background=c;b.onclick=()=>{SK.color=c;row.querySelectorAll('.sw').forEach(s=>s.classList.toggle('on',s===b))};row.append(b)});
- row.append(btn('Undo',()=>{SK.objs.pop();SK.sel=-1;redraw();later()}));
- row.append(btn('Delete selected',()=>{if(SK.sel>=0){SK.objs.splice(SK.sel,1);SK.sel=-1;redraw();later()}}));
- const compactBtn=btn(SK.compact?'Normal symbols':'Small symbols',()=>{SK.compact=!SK.compact;compactBtn.textContent=SK.compact?'Normal symbols':'Small symbols';redraw()});
- row.append(compactBtn);
  row.append(btn('Clear all',()=>{SK.objs=[];SK.sel=-1;redraw();later()}));
+
  pads.sk={c:canvas,clr:()=>{SK.objs=[];SK.sel=-1;redraw()},load:null,redraw};
  redraw();
  const inlineHolder=el('div',{class:'s2'});
@@ -216,8 +250,7 @@ function sketchEditor(){
  function closeFullscreen(){inlineHolder.append(tb,canvas,row);fsOverlay.classList.add('hide');redraw()}
  fsOverlay.append(el('div',{class:'hh'},el('h1',{},'Sketch'),btn('Done',closeFullscreen)),fsBody);
  document.body.append(fsOverlay);
- row.append(btn('Expand ⤢',openFullscreen));
- inlineHolder.append(el('p',{class:'hint'},'Pen: draw freehand. Arrow: drag to draw. Hole: tap to place a circle. Text: tap to place a label (e.g. a time like 68ms). Move/Delete: tap an item to select, then drag or delete it.'),tb,canvas,row);
+ inlineHolder.append(el('p',{class:'hint'},'Size (toggle) controls whether the next symbol you place is small or normal — like Caps Lock. Each symbol keeps its own size after that.'),tb,canvas,row);
  return inlineHolder}
 
 const subs=(n,name,mk)=>Array.from({length:n},(_,j)=>{const i=j+1,s=el('div',{class:'sub'},el('h3',{},name+' '+i)),g=el('div',{class:'g'});mk(i).forEach(f=>g.append(f));s.append(g);return s});
@@ -318,7 +351,6 @@ function build(v){
  F(7.5);T('Include nearest building, North, timing and sequence',71,146.4);
  const g0=148,g1=244;d.setDrawColor(200);d.setLineWidth(.15);
  for(let a=X0;a<=X1+.1;a+=4.89)d.line(a,g0,a,g1);for(let b=g0;b<=g1+.1;b+=4.8)d.line(X0,b,X1,b);
- d.addImage(IMG.compass,'PNG',190.5,149,14.8,14.8);
  d.addImage(pads.sk.c.toDataURL('image/png'),'PNG',X0,g0,X1-X0,g1-g0);
  d.setDrawColor(120);d.setLineWidth(.3);d.rect(X0,g0,X1-X0,g1-g0);
  // Notes
