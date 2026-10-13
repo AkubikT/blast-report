@@ -50,6 +50,9 @@ button{font:600 16px Barlow,system-ui,sans-serif;min-height:46px;padding:0 16px;
 .hh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
 .hash{font-family:ui-monospace,monospace;word-break:break-all;font-size:12px}
 #histBtn{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:10px;z-index:4;min-height:36px;padding:0 12px;font-size:13px}
+#draftsBtn{position:fixed;top:calc(10px + env(safe-area-inset-top,0px) + 44px);right:10px;z-index:4;min-height:36px;padding:0 12px;font-size:13px}
+#drafts{position:fixed;inset:0;overflow:auto;background:var(--bg);z-index:6;padding:calc(14px + env(safe-area-inset-top,0px)) 12px calc(24px + env(safe-area-inset-bottom,0px))}
+#drafts>*{max-width:720px;margin-left:auto;margin-right:auto}
 #pv{position:fixed;inset:0;z-index:7;background:var(--bg);display:flex;flex-direction:column}
 #pv.hide{display:none}
 #skfs{position:fixed;inset:0;z-index:7;background:var(--bg);display:flex;flex-direction:column}
@@ -78,6 +81,7 @@ button{font:600 16px Barlow,system-ui,sans-serif;min-height:46px;padding:0 16px;
 </style></head>
 <body>
 <button id="histBtn">History</button>
+<button id="draftsBtn">Drafts</button>
 
 <div id="scr-setup" class="screen">
  <header><h1>Blast Report</h1><p>Select the company and project to begin.</p></header>
@@ -87,7 +91,7 @@ button{font:600 16px Barlow,system-ui,sans-serif;min-height:46px;padding:0 16px;
 <div id="scr-report" class="screen hide">
  <header><h1>Blast Report</h1><p id="ctx" class="hint"></p></header>
  <main id="form"></main>
- <div class="bar"><button id="rBack">Back</button><button id="rNew">New report</button><button class="p" id="rNext">Continue</button></div>
+ <div class="bar"><button id="rBack">Back</button><button id="rNew">New</button><button id="rDraft">Save draft</button><button class="p" id="rNext">Continue</button></div>
 </div>
 
 <div id="scr-extras" class="screen hide">
@@ -418,8 +422,8 @@ function finalizeDoc(v,ex){
 
 /* ---------- Storage: reports, companies, projects ---------- */
 const sha=async b=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',await b.arrayBuffer()))].map(x=>x.toString(16).padStart(2,'0')).join('');
-const dbp=new Promise((ok,no)=>{const r=indexedDB.open('blast',2);
- r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains('reports'))d.createObjectStore('reports',{keyPath:'id'});if(!d.objectStoreNames.contains('companies'))d.createObjectStore('companies',{keyPath:'id'});if(!d.objectStoreNames.contains('projects'))d.createObjectStore('projects',{keyPath:'id'})};
+const dbp=new Promise((ok,no)=>{const r=indexedDB.open('blast',3);
+ r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains('reports'))d.createObjectStore('reports',{keyPath:'id'});if(!d.objectStoreNames.contains('companies'))d.createObjectStore('companies',{keyPath:'id'});if(!d.objectStoreNames.contains('projects'))d.createObjectStore('projects',{keyPath:'id'});if(!d.objectStoreNames.contains('drafts'))d.createObjectStore('drafts',{keyPath:'id'})};
  r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)});
 const tx=async(store,mode,f)=>{const d=await dbp;return new Promise((ok,no)=>{const t=d.transaction(store,mode),q=f(t.objectStore(store));t.oncomplete=()=>ok(q.result);t.onerror=()=>no(t.error)})};
 async function out(b,n){const f=new File([b],n,{type:'application/pdf'});
@@ -459,6 +463,59 @@ async function showHist(){
    c.append(t);return c}));
  H.classList.remove('hide');H.scrollTo(0,0)}
 $('#histBtn').onclick=()=>showHist().catch(e=>toast('Error: '+(e&&e.message||e)));
+
+/* ---------- Drafts: pause a report and come back to it later ---------- */
+const D=el('div',{id:'drafts',class:'hide'});document.body.append(D);
+async function saveDraft(){
+ try{
+  const v=collect();
+  const rec={id:currentDraftId||('D-'+Date.now().toString(36).toUpperCase()),
+   updated:new Date().toISOString(),
+   companyId:ST.company?ST.company.id:null,companyName:ST.company?ST.company.name:'',
+   projectId:ST.project?ST.project.id:null,projectName:ST.project?ST.project.name:'',
+   blastNo:v.blastNo,date:v.date,blaster:v.blaster,
+   form:v,skObjs:SK.objs,sg:pads.sg.c.toDataURL(),ex:EX};
+  await tx('drafts','readwrite',s=>s.put(rec));
+  toast('Saved as draft'+(v.blastNo?' — Blast #'+v.blastNo:''));
+  currentDraftId=null;reset();EX=defaultEX();try{localStorage.removeItem(EXK)}catch(e){}
+  ST={company:null,project:null,blastNo:null};setupUI={mode:'company-list',editing:null};
+  showScreen('scr-setup');renderSetup()
+ }catch(e){toast('Error: '+(e&&e.message||e))}}
+async function resumeDraft(id){
+ try{
+  const rec=await tx('drafts','readonly',s=>s.get(id));
+  if(!rec){toast('Draft not found');return}
+  let company=null,project=null;
+  if(rec.companyId)company=await tx('companies','readonly',s=>s.get(rec.companyId));
+  if(company&&rec.projectId)project=await tx('projects','readonly',s=>s.get(rec.projectId));
+  if(!company){toast('Original company was deleted — pick a company and project to continue this draft');ST={company:null,project:null,blastNo:rec.blastNo||null}}
+  else if(!project){toast('Original project was deleted — pick a project to continue this draft');ST={company,project:null,blastNo:rec.blastNo||null}}
+  else ST={company,project,blastNo:rec.blastNo||null};
+  currentDraftId=rec.id;
+  document.querySelectorAll('[data-k]').forEach(e=>{const x=rec.form&&rec.form[e.dataset.k];if(x!==undefined)e.type=='checkbox'?e.checked=x:e.value=x});
+  SK.objs=rec.skObjs||[];SK.sel=-1;if(pads.sk&&pads.sk.redraw)pads.sk.redraw();
+  if(rec.sg&&pads.sg)pads.sg.load(rec.sg);
+  EX={...defaultEX(),...(rec.ex||{}),blastRecord:{...defaultBR(),...((rec.ex&&rec.ex.blastRecord)||{})}};
+  upd();later();saveEX();
+  D.classList.add('hide');
+  if(ST.company&&ST.project){$('#ctx').textContent='Company: '+ST.company.name+'  ·  Project: '+ST.project.name;showScreen('scr-report')}
+  else{showScreen('scr-setup');renderSetup()}
+  scrollTo(0,0)
+ }catch(e){toast('Error: '+(e&&e.message||e))}}
+async function showDrafts(){
+ const all=(await tx('drafts','readonly',s=>s.getAll())).sort((a,b)=>b.updated.localeCompare(a.updated));
+ D.replaceChildren(el('div',{class:'hh'},el('h1',{},'Drafts'),btn('Close',()=>D.classList.add('hide'))),
+  el('p',{class:'hint'},'Paused reports. Resume to pick up where you left off, from any device, as long as they were saved on this device.'));
+ if(!all.length)D.append(el('p',{class:'hint'},'No saved drafts.'));
+ all.forEach(r=>{
+  const c=el('section',{class:'sec'},el('h2',{},(r.blastNo?'Blast #'+r.blastNo+' · ':'')+(r.date||'no date')),
+   el('p',{class:'hint'},(r.companyName||'(no company)')+' · '+(r.projectName||'(no project)')+' · saved '+r.updated.slice(0,16).replace('T',' ')+' UTC'));
+  const t=el('div',{class:'tools'});
+  t.append(btn('Resume',()=>resumeDraft(r.id)));
+  t.append(btn('Delete',async()=>{if(!confirm('Delete this draft? This cannot be undone.'))return;await tx('drafts','readwrite',s=>s.delete(r.id));showDrafts()}));
+  c.append(t);D.append(c)});
+ D.classList.remove('hide');D.scrollTo(0,0)}
+$('#draftsBtn').onclick=()=>showDrafts().catch(e=>toast('Error: '+(e&&e.message||e)));
 
 /* ---------- Image helpers ---------- */
 function fileToImage(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=r.result};r.onerror=rej;r.readAsDataURL(file)})}
@@ -521,7 +578,7 @@ async function renderCompanyStep(root){
  root.append(s)}
 async function renderProjectStep(root){
  if(setupUI.mode=='project-form'){root.append(projectFormUI(setupUI.editing,async obj=>{
-   const rec=setupUI.editing?{...setupUI.editing,...obj}:{id:'P-'+Date.now().toString(36),companyId:ST.company.id,counter:obj.counter||0};
+   const rec=setupUI.editing?{...setupUI.editing,...obj}:{id:'P-'+Date.now().toString(36),companyId:ST.company.id,name:obj.name,counter:obj.counter||0};
    await tx('projects','readwrite',s=>s.put(rec));setupUI={mode:'project-list',editing:null};ST.project=rec;ST.blastNo=null;renderSetup()},
   ()=>{setupUI={mode:'project-list',editing:null};renderSetup()}));return}
  const head=el('div',{class:'hh'},el('h2',{},'2. Project — '+ST.company.name),btn('Change company',()=>{ST.company=null;ST.project=null;renderSetup()}));
@@ -555,6 +612,7 @@ function renderBlastNoStep(root){
 function defaultBR(){return{blaster:'',blastDate:'',tasks:TASKS.map(t=>({task:t,done:false,time:'',date:'',notes:''}))}}
 function defaultEX(){return{tabs:[],active:null,blastRecord:defaultBR(),drillPhotos:[],notes:'',otherPhotos:[]}}
 let EX=defaultEX();const EXK='blastExtras';
+let currentDraftId=null;
 let tm2;const later2=()=>{clearTimeout(tm2);tm2=setTimeout(saveEX,500)};
 function saveEX(){try{localStorage.setItem(EXK,JSON.stringify(EX))}catch(e){}}
 try{const s=JSON.parse(localStorage.getItem(EXK)||'null');if(s)EX={...defaultEX(),...s,blastRecord:{...defaultBR(),...(s.blastRecord||{})}}}catch(e){}
@@ -602,9 +660,10 @@ function renderExtras(){
  else if(EX.active=='other')root.append(photoTab('otherPhotos','Other document photos (1–2)'))}
 
 /* ---------- Navigation & finalize ---------- */
-function fullReset(){reset();EX=defaultEX();try{localStorage.removeItem(EXK)}catch(e){}ST={company:null,project:null,blastNo:null};setupUI={mode:'company-list',editing:null};showScreen('scr-setup');renderSetup()}
+function fullReset(){currentDraftId=null;reset();EX=defaultEX();try{localStorage.removeItem(EXK)}catch(e){}ST={company:null,project:null,blastNo:null};setupUI={mode:'company-list',editing:null};showScreen('scr-setup');renderSetup()}
 function wireNewBtn(b){let armed=0;const orig=b.textContent;b.onclick=()=>{if(!armed){armed=1;b.textContent='Tap again to clear';setTimeout(()=>{armed=0;b.textContent=orig},3000);return}armed=0;b.textContent=orig;fullReset()}}
 wireNewBtn($('#rNew'));
+$('#rDraft').onclick=()=>saveDraft();
 $('#ePrev').onclick=()=>previewPDF();
 $('#rBack').onclick=()=>{showScreen('scr-setup');renderSetup()};
 $('#rNext').onclick=()=>{const v=collect();const tabs=[];if(v.c1)tabs.push('br');if(v.c2)tabs.push('drill');if(v.c3)tabs.push('notes');if(v.c4)tabs.push('other');
@@ -621,6 +680,7 @@ let fin=0;$('#go').onclick=async function(){
   const doc=finalizeDoc(v,EX),blob=doc.output('blob'),hash=await sha(blob);
   await tx('reports','readwrite',s=>s.add({id:v._id,created:v._created,date:v.date,blastNo:v.blastNo,project:v.project,company:ST.company?ST.company.name:'',ref:v.ref,name:nm,hash,pdf:blob,data:v}));
   if(ST.project){const n=parseInt(String(v.blastNo).replace(/[^\d]/g,''),10);if(!isNaN(n)&&n>(ST.project.counter||0)){ST.project.counter=n;await tx('projects','readwrite',s=>s.put(ST.project))}}
+  if(currentDraftId)await tx('drafts','readwrite',s=>s.delete(currentDraftId)).catch(()=>{});
   const savedId=v._id;fullReset();toast('Saved to history: '+savedId);await out(blob,nm)
  }catch(e){toast('Error: '+(e&&e.message||e))}};
 
