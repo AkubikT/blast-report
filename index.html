@@ -164,7 +164,15 @@ function sketchEditor(){
   c.lineCap='round';c.lineJoin='round';
   if(o.type=='stroke'){c.strokeStyle=o.color;c.lineWidth=W*0.0075;c.beginPath();o.pts.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.stroke()}
   else if(o.type=='arrow'){drawArrow(c,o.x1,o.y1,o.x2,o.y2,o.color,cm)}
-  else if(o.type=='textArrow'){drawArrow(c,o.x1,o.y1,o.x2,o.y2,o.color,cm);if(o.label){c.fillStyle=o.color;c.font=(W*0.02*cm)+'px Barlow, sans-serif';c.textAlign='center';c.fillText(o.label,(o.x1+o.x2)/2,(o.y1+o.y2)/2-6);c.textAlign='left'}}
+  else if(o.type=='textArrow'){drawArrow(c,o.x1,o.y1,o.x2,o.y2,o.color,cm);
+   if(o.label){const mx=(o.x1+o.x2)/2,my=(o.y1+o.y2)/2,fs=W*0.02*cm;
+    let ang=Math.atan2(o.y2-o.y1,o.x2-o.x1);if(ang>Math.PI/2||ang<-Math.PI/2)ang+=Math.PI;
+    c.save();c.translate(mx,my);c.rotate(ang);c.font=fs+'px Barlow, sans-serif';
+    const tw=c.measureText(o.label).width,pad=fs*0.5,boxLen=tw+pad*2,boxThick=fs*1.5;
+    c.fillStyle='#fff';c.fillRect(-boxLen/2,-boxThick/2,boxLen,boxThick);
+    c.strokeStyle=o.color;c.lineWidth=W*0.0018;c.strokeRect(-boxLen/2,-boxThick/2,boxLen,boxThick);
+    c.fillStyle=o.color;c.textAlign='center';c.textBaseline='middle';c.fillText(o.label,0,0);
+    c.restore()}}
   else if(o.type=='text'){c.fillStyle=o.color;c.font=(W*0.022*cm)+'px Barlow, sans-serif';c.fillText(o.text,o.x,o.y)}
   else if(o.type=='hole'){const r=W*0.014*cm;c.strokeStyle=o.color;c.lineWidth=W*0.0025;c.beginPath();c.arc(o.x,o.y,r,0,7);c.stroke()}
   else if(o.type=='numHole'){const r=W*0.014*cm;c.strokeStyle=o.color;c.lineWidth=W*0.0025;c.beginPath();c.arc(o.x,o.y,r,0,7);c.stroke();
@@ -213,7 +221,7 @@ function sketchEditor(){
  const SVGI={
   pen:'<path d="M4 20l1-4L17 4l3 3L8 19z"/><path d="M15 6l3 3"/>',
   arrow:'<line x1="4" y1="20" x2="20" y2="4"/><polyline points="11 4 20 4 20 13"/>',
-  textArrow:'<line x1="3" y1="20" x2="15" y2="8"/><polyline points="8 8 15 8 15 15"/><text x="15" y="21" font-size="10" font-weight="700" fill="currentColor" stroke="none">T</text>',
+  textArrow:'<line x1="4" y1="20" x2="20" y2="4"/><polyline points="11 4 20 4 20 13"/><rect x="7.5" y="9.5" width="9" height="5" transform="rotate(-45 12 12)" fill="var(--card,#fff)"/>',
   text:'<text x="12" y="18" font-size="16" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none">T</text>',
   hole:'<circle cx="12" cy="12" r="8"/>',
   numHole:'<circle cx="12" cy="12" r="8"/><text x="12" y="16" font-size="9" text-anchor="middle" fill="currentColor" stroke="none">#</text>',
@@ -263,7 +271,7 @@ const REF=fld('ref','Correction of report','text',null,1);REF.querySelector('inp
 sec('Blast',fld('date','Date','date'),fld('time','Time','time'),fld('blastNo','Blast #'),fld('blaster','Blaster'),fld('project','Project','text',null,1),REF);
 sec('Rock and pattern',fld('material','Type of material','sel',ROCKS,1),fld('matOther','Specify rock type','text',null,1),fld('pattern','Pattern'),fld('holes','Number of holes','num'),N('rows','Number of rows'),N('depth','Average depth (m)'),N('diam','Hole diameter (mm)'),N('volume','Overall rock volume (m³)'));
 sec('Weather',fld('weather','Weather','sel',WX,1),fld('windDir','Wind direction','sel',WD),N('windSpd','Wind speed (km/h)'));
-sec('Seismograph',...subs(4,'Seismograph',i=>[fld('sbt'+i,'Building type','text','e.g. House, Garage, Warehouse'),N('sd'+i,'Distance (m)'),fld('st'+i,'Details'),N('sv'+i,'Vibrations (mm/s)'),N('sb'+i,'Decibels (dB)')]));
+sec('Seismograph',...subs(4,'Seismograph',i=>[fld('sbt'+i,'Building type','text','e.g. House, Garage, Warehouse'),N('sd'+i,'Distance (m)'),fld('st'+i,'Details'),fld('sv'+i,'Vibrations (mm/s)'),fld('sb'+i,'Decibels (dB)')]));
 const pf=fld('pf','Powder factor (kg/m³, auto)');pf.querySelector('input').readOnly=true;
 sec('Initiation and loading',fld('initSys','Initiation system','text',null,1),N('maxW','Max weight × hole (kg)'),N('totW','Total weight explosives (kg)'),fld('prim','Priming','sel',['Single','Double','Triple','Other']),fld('primOther','Priming other (specify)'),N('collar','Collar (m)'),fld('stem','Stemming','sel',['¼','½','¾','Other']),fld('stemOther','Stemming other (specify)'),fld('matting','Matting'),N('mattQty','Matting qty'),pf);
 sec('Explosives',...subs(8,'Explosive',i=>[fld('en'+i,'Explosive name'),fld('ec'+i,'Characteristics'),N('eq'+i,'Qty')]));
@@ -659,6 +667,26 @@ function renderExtras(){
  else if(EX.active=='notes')root.append(tabNotes());
  else if(EX.active=='other')root.append(photoTab('otherPhotos','Other document photos (1–2)'))}
 
+/* ---------- Validation: required fields before Continue ---------- */
+const ALWAYS_REQUIRED=['date','time','blastNo','blaster','project','material','pattern','holes','rows','depth','diam','volume','weather','windDir','windSpd','initSys','maxW','totW','prim','collar','stem','matting','mattQty','notes'];
+function fieldLabel(k){const inp=K$(k);const lab=inp&&inp.closest('label');const span=lab&&lab.querySelector('span');return span?span.textContent:k}
+function validateReport(v){
+ const missing=[];
+ ALWAYS_REQUIRED.forEach(k=>{if(!String(v[k]||'').trim())missing.push(fieldLabel(k))});
+ if(v.material=='Other'&&!String(v.matOther||'').trim())missing.push(fieldLabel('matOther'));
+ if(v.prim=='Other'&&!String(v.primOther||'').trim())missing.push(fieldLabel('primOther'));
+ if(v.stem=='Other'&&!String(v.stemOther||'').trim())missing.push(fieldLabel('stemOther'));
+ if(v.c4&&!String(v.docsOther||'').trim())missing.push(fieldLabel('docsOther'));
+ const filled=k=>v[k]===true||(typeof v[k]=='string'&&v[k].trim());
+ const groups=[
+  ['Seismograph',Array.from({length:4},(_,j)=>['sbt','sd','st','sv','sb'].map(p=>p+(j+1))).flat()],
+  ['Explosives',Array.from({length:8},(_,j)=>['en','ec','eq'].map(p=>p+(j+1))).flat()],
+  ['Charge layout per hole',[...Array.from({length:8},(_,j)=>'A'+j),...Array.from({length:8},(_,j)=>'B'+j)]],
+  ['Helpers',['h1','h2','h3','h4']]
+ ];
+ groups.forEach(([label,keys])=>{if(!keys.some(filled))missing.push(label+' (fill in at least one)')});
+ return missing}
+
 /* ---------- Navigation & finalize ---------- */
 function fullReset(){currentDraftId=null;reset();EX=defaultEX();try{localStorage.removeItem(EXK)}catch(e){}ST={company:null,project:null,blastNo:null};setupUI={mode:'company-list',editing:null};showScreen('scr-setup');renderSetup()}
 function wireNewBtn(b){let armed=0;const orig=b.textContent;b.onclick=()=>{if(!armed){armed=1;b.textContent='Tap again to clear';setTimeout(()=>{armed=0;b.textContent=orig},3000);return}armed=0;b.textContent=orig;fullReset()}}
@@ -666,7 +694,10 @@ wireNewBtn($('#rNew'));
 $('#rDraft').onclick=()=>saveDraft();
 $('#ePrev').onclick=()=>previewPDF();
 $('#rBack').onclick=()=>{showScreen('scr-setup');renderSetup()};
-$('#rNext').onclick=()=>{const v=collect();const tabs=[];if(v.c1)tabs.push('br');if(v.c2)tabs.push('drill');if(v.c3)tabs.push('notes');if(v.c4)tabs.push('other');
+$('#rNext').onclick=()=>{const v=collect();
+ const missing=validateReport(v);
+ if(missing.length){toast('Please complete: '+missing.slice(0,4).join(', ')+(missing.length>4?', and '+(missing.length-4)+' more':''));return}
+ const tabs=[];if(v.c1)tabs.push('br');if(v.c2)tabs.push('drill');if(v.c3)tabs.push('notes');if(v.c4)tabs.push('other');
  EX.tabs=tabs;EX.blastRecord.blaster=EX.blastRecord.blaster||v.blaster;EX.blastRecord.blastDate=EX.blastRecord.blastDate||v.date;
  renderExtras();showScreen('scr-extras');scrollTo(0,0)};
 $('#eBack').onclick=()=>{showScreen('scr-report');scrollTo(0,0)};
