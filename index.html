@@ -156,7 +156,11 @@ function sketchEditor(){
  function measure(o){ctx.font=(W*0.022*(o.small?0.6:1))+'px Barlow, sans-serif';return ctx.measureText(o.text||'').width}
  function bbox(o){
   if(o.type=='stroke'){const xs=o.pts.map(p=>p.x),ys=o.pts.map(p=>p.y);return{x:Math.min(...xs),y:Math.min(...ys),w:Math.max(...xs)-Math.min(...xs)||1,h:Math.max(...ys)-Math.min(...ys)||1}}
-  if(o.type=='arrow'||o.type=='textArrow')return{x:Math.min(o.x1,o.x2),y:Math.min(o.y1,o.y2),w:Math.abs(o.x2-o.x1)||1,h:Math.abs(o.y2-o.y1)||1};
+  if(o.type=='textArrow'){const fs=W*0.02*(o.small?0.6:1);ctx.font=fs+'px Barlow, sans-serif';
+   const bw=o.label?ctx.measureText(o.label).width+fs:0,bh=o.label?fs*1.5:0,mx=(o.x1+o.x2)/2,my=(o.y1+o.y2)/2;
+   const x0=Math.min(o.x1,o.x2,mx-bw/2),x1=Math.max(o.x1,o.x2,mx+bw/2),y0=Math.min(o.y1,o.y2,my-bh/2),y1=Math.max(o.y1,o.y2,my+bh/2);
+   return{x:x0,y:y0,w:x1-x0||1,h:y1-y0||1}}
+  if(o.type=='arrow')return{x:Math.min(o.x1,o.x2),y:Math.min(o.y1,o.y2),w:Math.abs(o.x2-o.x1)||1,h:Math.abs(o.y2-o.y1)||1};
   if(o.type=='text')return{x:o.x,y:o.y-W*0.02,w:measure(o)||W*0.05,h:W*0.026};
   const r=W*0.014*(o.small?0.6:1);return{x:o.x-r,y:o.y-r,w:r*2,h:r*2}}
  function drawArrow(c,x1,y1,x2,y2,color,cm){
@@ -170,8 +174,7 @@ function sketchEditor(){
   else if(o.type=='arrow'){drawArrow(c,o.x1,o.y1,o.x2,o.y2,o.color,cm)}
   else if(o.type=='textArrow'){drawArrow(c,o.x1,o.y1,o.x2,o.y2,o.color,cm);
    if(o.label){const mx=(o.x1+o.x2)/2,my=(o.y1+o.y2)/2,fs=W*0.02*cm;
-    let ang=Math.atan2(o.y2-o.y1,o.x2-o.x1);if(ang>Math.PI/2||ang<-Math.PI/2)ang+=Math.PI;
-    c.save();c.translate(mx,my);c.rotate(ang);c.font=fs+'px Barlow, sans-serif';
+    c.save();c.translate(mx,my);c.font=fs+'px Barlow, sans-serif';
     const tw=c.measureText(o.label).width,pad=fs*0.5,boxLen=tw+pad*2,boxThick=fs*1.5;
     c.fillStyle='#fff';c.fillRect(-boxLen/2,-boxThick/2,boxLen,boxThick);
     c.strokeStyle=o.color;c.lineWidth=W*0.0018;c.strokeRect(-boxLen/2,-boxThick/2,boxLen,boxThick);
@@ -254,7 +257,7 @@ function sketchEditor(){
  const SVGI={
   pen:'<path d="M4 20l1-4L17 4l3 3L8 19z"/><path d="M15 6l3 3"/>',
   arrow:'<line x1="4" y1="20" x2="20" y2="4"/><polyline points="11 4 20 4 20 13"/>',
-  textArrow:'<line x1="4" y1="20" x2="20" y2="4"/><polyline points="11 4 20 4 20 13"/><rect x="7.5" y="9.5" width="9" height="5" transform="rotate(-45 12 12)" fill="var(--card,#fff)"/>',
+  textArrow:'<line x1="4" y1="20" x2="20" y2="4"/><polyline points="11 4 20 4 20 13"/><rect x="6.5" y="9.5" width="11" height="5" fill="var(--card,#fff)"/>',
   text:'<text x="12" y="18" font-size="16" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none">T</text>',
   hole:'<circle cx="12" cy="12" r="8"/>',
   numHole:'<circle cx="12" cy="12" r="8"/><text x="12" y="16" font-size="9" text-anchor="middle" fill="currentColor" stroke="none">#</text>',
