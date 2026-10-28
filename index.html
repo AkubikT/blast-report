@@ -35,6 +35,8 @@ input[readonly]{opacity:.75}
 .c{display:flex;align-items:center;gap:10px;min-height:38px}
 .c input{width:22px;height:22px;accent-color:var(--ink)}
 .pad{display:block;width:100%;height:auto;background:#fff;border:2px solid var(--ink);border-radius:4px;touch-action:none}
+.zbox{position:relative;overflow:hidden;border:2px solid var(--ink);border-radius:4px;background:#fff;touch-action:none}
+.zbox canvas.pad{border:0;border-radius:0;height:100%;transform-origin:0 0}
 .pad.grid{background-image:linear-gradient(#d3d7da 1px,transparent 1px),linear-gradient(90deg,#d3d7da 1px,transparent 1px);background-size:2.5% 5%}
 .tools{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
 button{font:600 16px Barlow,system-ui,sans-serif;min-height:46px;padding:0 16px;border-radius:6px;border:2px solid var(--ink);background:var(--card);color:var(--ink)}
@@ -148,6 +150,8 @@ function pad(id,w,h,cols){
 function sketchEditor(){
  const W=800,H=392;
  const canvas=el('canvas',{width:W,height:H,class:'pad grid'});
+ const box=el('div',{class:'zbox',style:'aspect-ratio:'+W+'/'+H});
+ box.append(canvas);
  const ctx=canvas.getContext('2d');
  function measure(o){ctx.font=(W*0.022*(o.small?0.6:1))+'px Barlow, sans-serif';return ctx.measureText(o.text||'').width}
  function bbox(o){
@@ -214,9 +218,38 @@ function sketchEditor(){
   else if(SK.tool=='numHole')askText('',val=>{if(val!=null){SK.objs.push({type:'numHole',color:SK.color,small:SK.compact,x:p.x,y:p.y,label:(val||'').trim()});redraw();later()}});
   else if(SK.tool=='select'){SK.dragOffset=null;if(SK.sel>=0)later()}
   downPt=null}
- canvas.onpointerdown=e=>{try{canvas.setPointerCapture(e.pointerId)}catch(err){}handleDown(e)};
- canvas.onpointermove=handleMove;
- canvas.onpointerup=canvas.onpointercancel=handleUp;
+ function cancelDraw(){SK.cur=null;SK.arrowStart=null;SK._preview=null;SK.dragOffset=null;downPt=null;redraw()}
+ // Two-finger pinch zoom / pan; one finger keeps drawing with the active tool
+ let tScale=1,tX=0,tY=0;const MIN_S=0.5,MAX_S=5;
+ function applyTransform(){canvas.style.transform='translate('+tX+'px,'+tY+'px) scale('+tScale+')'}
+ function clampPan(){const bw=box.clientWidth,bh=box.clientHeight;
+  if(tScale>=1){tX=Math.min(0,Math.max(bw-bw*tScale,tX));tY=Math.min(0,Math.max(bh-bh*tScale,tY))}
+  else{tX=Math.max(0,Math.min(bw-bw*tScale,tX));tY=Math.max(0,Math.min(bh-bh*tScale,tY))}}
+ const active=new Map();let pinch=null;
+ const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y),mid=(a,b)=>({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
+ box.addEventListener('pointerdown',e=>{
+  try{box.setPointerCapture(e.pointerId)}catch(err){}
+  active.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(active.size===1)handleDown(e);
+  else if(active.size===2){
+   cancelDraw();
+   const pts=[...active.values()],r=box.getBoundingClientRect(),m0=mid(pts[0],pts[1]),sMid={x:m0.x-r.left,y:m0.y-r.top};
+   pinch={startDist:dist(pts[0],pts[1]),originScale:tScale,contentPt:{x:(sMid.x-tX)/tScale,y:(sMid.y-tY)/tScale}}}});
+ box.addEventListener('pointermove',e=>{
+  if(!active.has(e.pointerId))return;active.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(active.size===1)handleMove(e);
+  else if(active.size===2&&pinch){
+   const pts=[...active.values()],r=box.getBoundingClientRect(),m0=mid(pts[0],pts[1]),newMid={x:m0.x-r.left,y:m0.y-r.top};
+   const ns=Math.max(MIN_S,Math.min(MAX_S,pinch.originScale*dist(pts[0],pts[1])/pinch.startDist));
+   tScale=ns;tX=newMid.x-pinch.contentPt.x*ns;tY=newMid.y-pinch.contentPt.y*ns;clampPan();applyTransform()}});
+ function endPointer(e){
+  if(!active.has(e.pointerId))return;
+  const was=active.size;active.delete(e.pointerId);
+  if(was===1)handleUp(e);
+  if(active.size<2)pinch=null}
+ box.addEventListener('pointerup',endPointer);
+ box.addEventListener('pointercancel',endPointer);
+ function resetZoom(){tScale=1;tX=0;tY=0;applyTransform()}
 
  const SVGI={
   pen:'<path d="M4 20l1-4L17 4l3 3L8 19z"/><path d="M15 6l3 3"/>',
@@ -228,6 +261,7 @@ function sketchEditor(){
   move:'<line x1="12" y1="3" x2="12" y2="21"/><polyline points="8 7 12 3 16 7"/><polyline points="8 17 12 21 16 17"/><line x1="3" y1="12" x2="21" y2="12"/><polyline points="7 8 3 12 7 16"/><polyline points="17 8 21 12 17 16"/>',
   undo:'<path d="M3 11a8 8 0 1 1 2.6 5.9"/><polyline points="3 5 3 11 9 11"/>',
   del:'<path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/>',
+  zoomReset:'<circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/><line x1="7" y1="10" x2="13" y2="10"/>',
   expand:'<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>',
   sizeBig:'<line x1="12" y1="20" x2="12" y2="5"/><polyline points="6 11 12 5 18 11"/>',
   sizeSmall:'<line x1="12" y1="15" x2="12" y2="9"/><polyline points="9 12 12 9 15 12"/><line x1="7" y1="19" x2="17" y2="19"/>'
@@ -246,6 +280,7 @@ function sketchEditor(){
  tb.append(iconBtn('del','Delete',()=>{if(SK.sel>=0){SK.objs.splice(SK.sel,1);SK.sel=-1;redraw();later()}}));
  const expandBtn=iconBtn('expand','Expand',()=>openFullscreen());
  tb.append(expandBtn);
+ tb.append(iconBtn('zoomReset','Reset zoom',()=>resetZoom()));
 
  const row=el('div',{class:'tools'});
  const sizeBtn=iconBtn(SK.compact?'sizeSmall':'sizeBig','Size',()=>{SK.compact=!SK.compact;sizeBtn.replaceChildren();sizeBtn.classList.toggle('on',SK.compact);const ic=el('span',{});ic.innerHTML=svg(SVGI[SK.compact?'sizeSmall':'sizeBig']);sizeBtn.append(ic,el('span',{},'Size'))},SK.compact);
@@ -258,11 +293,11 @@ function sketchEditor(){
  const inlineHolder=el('div',{class:'s2'});
  const fsOverlay=el('div',{id:'skfs',class:'hide'});
  const fsBody=el('div',{id:'skfs-body'});
- function openFullscreen(){fsBody.append(tb,canvas,row);fsOverlay.classList.remove('hide');redraw()}
- function closeFullscreen(){inlineHolder.append(tb,canvas,row);fsOverlay.classList.add('hide');redraw()}
+ function openFullscreen(){fsBody.append(tb,box,row);fsOverlay.classList.remove('hide');redraw()}
+ function closeFullscreen(){inlineHolder.append(tb,box,row);fsOverlay.classList.add('hide');redraw()}
  fsOverlay.append(el('div',{class:'hh'},el('h1',{},'Sketch'),btn('Done',closeFullscreen)),fsBody);
  document.body.append(fsOverlay);
- inlineHolder.append(el('p',{class:'hint'},'Size (toggle) controls whether the next symbol you place is small or normal — like Caps Lock. Each symbol keeps its own size after that.'),tb,canvas,row);
+ inlineHolder.append(el('p',{class:'hint'},'Size (toggle) controls whether the next symbol you place is small or normal — like Caps Lock. Each symbol keeps its own size after that.'),tb,box,row);
  return inlineHolder}
 
 const subs=(n,name,mk)=>Array.from({length:n},(_,j)=>{const i=j+1,s=el('div',{class:'sub'},el('h3',{},name+' '+i)),g=el('div',{class:'g'});mk(i).forEach(f=>g.append(f));s.append(g);return s});
