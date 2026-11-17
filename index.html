@@ -35,9 +35,7 @@ input[readonly]{opacity:.75}
 .c{display:flex;align-items:center;gap:10px;min-height:38px}
 .c input{width:22px;height:22px;accent-color:var(--ink)}
 .pad{display:block;width:100%;height:auto;background:#fff;border:2px solid var(--ink);border-radius:4px;touch-action:none}
-.zbox{position:relative;overflow:hidden;border:2px solid var(--ink);border-radius:4px;background:#fff;touch-action:none}
-.zbox canvas.pad{border:0;border-radius:0;height:100%;transform-origin:0 0}
-.pad.grid{background-image:linear-gradient(#d3d7da 1px,transparent 1px),linear-gradient(90deg,#d3d7da 1px,transparent 1px);background-size:2.5% 5%}
+.pad.grid{background-image:linear-gradient(#d3d7da 1px,transparent 1px),linear-gradient(90deg,#d3d7da 1px,transparent 1px);background-size:2.439% 4.348%}
 .tools{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
 button{font:600 16px Barlow,system-ui,sans-serif;min-height:46px;padding:0 16px;border-radius:6px;border:2px solid var(--ink);background:var(--card);color:var(--ink)}
 .sw{width:38px;min-height:38px;padding:0;border-radius:50%;border:2px solid var(--line)}
@@ -52,9 +50,6 @@ button{font:600 16px Barlow,system-ui,sans-serif;min-height:46px;padding:0 16px;
 .hh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
 .hash{font-family:ui-monospace,monospace;word-break:break-all;font-size:12px}
 #histBtn{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:10px;z-index:4;min-height:36px;padding:0 12px;font-size:13px}
-#draftsBtn{position:fixed;top:calc(10px + env(safe-area-inset-top,0px) + 44px);right:10px;z-index:4;min-height:36px;padding:0 12px;font-size:13px}
-#drafts{position:fixed;inset:0;overflow:auto;background:var(--bg);z-index:6;padding:calc(14px + env(safe-area-inset-top,0px)) 12px calc(24px + env(safe-area-inset-bottom,0px))}
-#drafts>*{max-width:720px;margin-left:auto;margin-right:auto}
 #pv{position:fixed;inset:0;z-index:7;background:var(--bg);display:flex;flex-direction:column}
 #pv.hide{display:none}
 #skfs{position:fixed;inset:0;z-index:7;background:var(--bg);display:flex;flex-direction:column}
@@ -70,9 +65,6 @@ button{font:600 16px Barlow,system-ui,sans-serif;min-height:46px;padding:0 16px;
 .tabs{display:flex;gap:8px;overflow-x:auto;margin-bottom:10px;padding-bottom:2px}
 .tab{padding:8px 14px;border-radius:999px;border:2px solid var(--line);background:var(--card);white-space:nowrap;min-height:38px}
 .tab.on{border-color:var(--ink);background:var(--acc)}
-.ibtn{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:54px;min-height:54px;padding:4px;font:600 10px Barlow,system-ui,sans-serif;line-height:1.1;border-radius:8px;flex:none}
-.ibtn svg{display:block}
-.ibtn.on{border-color:var(--ink);background:var(--acc)}
 .thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 .thumb{position:relative;width:96px;height:96px;border:1px solid var(--line);border-radius:6px;overflow:hidden}
 .thumb img{width:100%;height:100%;object-fit:cover;display:block}
@@ -83,7 +75,6 @@ button{font:600 16px Barlow,system-ui,sans-serif;min-height:46px;padding:0 16px;
 </style></head>
 <body>
 <button id="histBtn">History</button>
-<button id="draftsBtn">Drafts</button>
 
 <div id="scr-setup" class="screen">
  <header><h1>Blast Report</h1><p>Select the company and project to begin.</p></header>
@@ -93,7 +84,7 @@ button{font:600 16px Barlow,system-ui,sans-serif;min-height:46px;padding:0 16px;
 <div id="scr-report" class="screen hide">
  <header><h1>Blast Report</h1><p id="ctx" class="hint"></p></header>
  <main id="form"></main>
- <div class="bar"><button id="rBack">Back</button><button id="rNew">New</button><button id="rDraft">Save draft</button><button class="p" id="rNext">Continue</button></div>
+ <div class="bar"><button id="rBack">Back</button><button id="rNew">New report</button><button class="p" id="rNext">Continue</button></div>
 </div>
 
 <div id="scr-extras" class="screen hide">
@@ -148,181 +139,108 @@ function pad(id,w,h,cols){
 
 /* ---------- Sketch editor: editable objects (pen / arrow+label / text / hole / move-delete) ---------- */
 function sketchEditor(){
- const W=800,H=392;
+ const W=800,H=385;
  const canvas=el('canvas',{width:W,height:H,class:'pad grid'});
- const box=el('div',{class:'zbox',style:'aspect-ratio:'+W+'/'+H});
- box.append(canvas);
  const ctx=canvas.getContext('2d');
- function measure(o){ctx.font=(W*0.022*(o.small?0.6:1))+'px Barlow, sans-serif';return ctx.measureText(o.text||'').width}
+ function measure(o){ctx.font=(W*0.022*(SK.compact?0.6:1))+'px Barlow, sans-serif';return ctx.measureText(o.text||'').width}
  function bbox(o){
   if(o.type=='stroke'){const xs=o.pts.map(p=>p.x),ys=o.pts.map(p=>p.y);return{x:Math.min(...xs),y:Math.min(...ys),w:Math.max(...xs)-Math.min(...xs)||1,h:Math.max(...ys)-Math.min(...ys)||1}}
-  if(o.type=='textArrow'){const fs=W*0.02*(o.small?0.6:1);ctx.font=fs+'px Barlow, sans-serif';
-   const bw=o.label?ctx.measureText(o.label).width+fs:0,bh=o.label?fs*1.5:0,mx=(o.x1+o.x2)/2,my=(o.y1+o.y2)/2;
-   const x0=Math.min(o.x1,o.x2,mx-bw/2),x1=Math.max(o.x1,o.x2,mx+bw/2),y0=Math.min(o.y1,o.y2,my-bh/2),y1=Math.max(o.y1,o.y2,my+bh/2);
-   return{x:x0,y:y0,w:x1-x0||1,h:y1-y0||1}}
   if(o.type=='arrow')return{x:Math.min(o.x1,o.x2),y:Math.min(o.y1,o.y2),w:Math.abs(o.x2-o.x1)||1,h:Math.abs(o.y2-o.y1)||1};
   if(o.type=='text')return{x:o.x,y:o.y-W*0.02,w:measure(o)||W*0.05,h:W*0.026};
-  const r=W*0.014*(o.small?0.6:1);return{x:o.x-r,y:o.y-r,w:r*2,h:r*2}}
+  const r=W*0.014*(SK.compact?0.6:1);return{x:o.x-r,y:o.y-r,w:r*2,h:r*2}}
  function drawArrow(c,x1,y1,x2,y2,color,cm){
   c.strokeStyle=color;c.lineWidth=W*0.0025*cm;c.beginPath();c.moveTo(x1,y1);c.lineTo(x2,y2);c.stroke();
   const ang=Math.atan2(y2-y1,x2-x1),hl=W*0.02*cm;
   c.beginPath();c.moveTo(x2,y2);c.lineTo(x2-hl*Math.cos(ang-Math.PI/6),y2-hl*Math.sin(ang-Math.PI/6));c.lineTo(x2-hl*Math.cos(ang+Math.PI/6),y2-hl*Math.sin(ang+Math.PI/6));c.closePath();c.fillStyle=color;c.fill()}
  function drawObj(c,o,selected){
-  const cm=o.small?0.6:1;
+  const cm=SK.compact?0.6:1;
   c.lineCap='round';c.lineJoin='round';
   if(o.type=='stroke'){c.strokeStyle=o.color;c.lineWidth=W*0.0075;c.beginPath();o.pts.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.stroke()}
   else if(o.type=='arrow'){drawArrow(c,o.x1,o.y1,o.x2,o.y2,o.color,cm)}
-  else if(o.type=='textArrow'){drawArrow(c,o.x1,o.y1,o.x2,o.y2,o.color,cm);
-   if(o.label){const mx=(o.x1+o.x2)/2,my=(o.y1+o.y2)/2,fs=W*0.02*cm;
-    c.save();c.translate(mx,my);c.font=fs+'px Barlow, sans-serif';
-    const tw=c.measureText(o.label).width,pad=fs*0.5,boxLen=tw+pad*2,boxThick=fs*1.5;
-    c.fillStyle='#fff';c.fillRect(-boxLen/2,-boxThick/2,boxLen,boxThick);
-    c.strokeStyle=o.color;c.lineWidth=W*0.0018;c.strokeRect(-boxLen/2,-boxThick/2,boxLen,boxThick);
-    c.fillStyle=o.color;c.textAlign='center';c.textBaseline='middle';c.fillText(o.label,0,0);
-    c.restore()}}
   else if(o.type=='text'){c.fillStyle=o.color;c.font=(W*0.022*cm)+'px Barlow, sans-serif';c.fillText(o.text,o.x,o.y)}
   else if(o.type=='hole'){const r=W*0.014*cm;c.strokeStyle=o.color;c.lineWidth=W*0.0025;c.beginPath();c.arc(o.x,o.y,r,0,7);c.stroke()}
-  else if(o.type=='numHole'){const r=W*0.014*cm;c.strokeStyle=o.color;c.lineWidth=W*0.0025;c.beginPath();c.arc(o.x,o.y,r,0,7);c.stroke();
-   c.fillStyle=o.color;c.font=(W*0.016*cm)+'px Barlow, sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(o.label||'',o.x,o.y);c.textAlign='left';c.textBaseline='alphabetic'}
   if(selected){c.save();c.strokeStyle='#00b3ff';c.setLineDash([6,4]);c.lineWidth=2;const b=bbox(o);c.strokeRect(b.x-6,b.y-6,b.w+12,b.h+12);c.restore()}}
  function redraw(){ctx.clearRect(0,0,W,H);SK.objs.forEach((o,i)=>drawObj(ctx,o,i===SK.sel));if(SK._preview)drawObj(ctx,SK._preview,false);if(SK.cur)drawObj(ctx,SK.cur,false)}
  function hit(p){for(let i=SK.objs.length-1;i>=0;i--){const b=bbox(SK.objs[i]);if(p.x>=b.x-8&&p.x<=b.x+b.w+8&&p.y>=b.y-8&&p.y<=b.y+b.h+8)return i}return -1}
  function ptFromEvent(e){const r=canvas.getBoundingClientRect();return{x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height}}
  function offsetFor(o,p){if(o.type=='stroke')return{dx:p.x-o.pts[0].x,dy:p.y-o.pts[0].y,base:o.pts.map(q=>({x:q.x,y:q.y}))};
-  if(o.type=='arrow'||o.type=='textArrow')return{dx:p.x-o.x1,dy:p.y-o.y1,x1:o.x1,y1:o.y1,x2:o.x2,y2:o.y2};
+  if(o.type=='arrow')return{dx:p.x-o.x1,dy:p.y-o.y1,x1:o.x1,y1:o.y1,x2:o.x2,y2:o.y2};
   return{dx:p.x-o.x,dy:p.y-o.y,x:o.x,y:o.y}}
  function moveObj(o,p,off){
   if(o.type=='stroke'){const dx=p.x-off.dx-off.base[0].x,dy=p.y-off.dy-off.base[0].y;o.pts=off.base.map(q=>({x:q.x+dx,y:q.y+dy}))}
-  else if(o.type=='arrow'||o.type=='textArrow'){const dx=p.x-off.dx-off.x1,dy=p.y-off.dy-off.y1;o.x1=off.x1+dx;o.y1=off.y1+dy;o.x2=off.x2+dx;o.y2=off.y2+dy}
+  else if(o.type=='arrow'){const dx=p.x-off.dx-off.x1,dy=p.y-off.dy-off.y1;o.x1=off.x1+dx;o.y1=off.y1+dy;o.x2=off.x2+dx;o.y2=off.y2+dy}
   else{o.x=p.x-off.dx;o.y=p.y-off.dy}}
  function askText(defVal,cb){
   const bar=el('div',{style:'position:fixed;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:8;display:flex;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px'});
   const inp=el('input',{type:'text'});inp.value=defVal||'';
   bar.append(inp,btn('OK',()=>{document.body.removeChild(bar);cb(inp.value)}),btn('Cancel',()=>{document.body.removeChild(bar);cb(null)}));
   document.body.append(bar);inp.focus()}
- // single-finger drawing — dispatched by the pointer-count logic below
+ // single-finger drawing (pen / arrow / text / hole / select) — dispatched by the pointer-count logic below
  let downPt=null;
  function handleDown(e){e.preventDefault();const p=ptFromEvent(e);downPt=p;
-  if(SK.tool=='pen')SK.cur={type:'stroke',color:SK.color,small:SK.compact,pts:[p]};
-  else if(SK.tool=='arrow'||SK.tool=='textArrow')SK.arrowStart=p;
+  if(SK.tool=='pen')SK.cur={type:'stroke',color:SK.color,pts:[p]};
+  else if(SK.tool=='arrow')SK.arrowStart=p;
   else if(SK.tool=='select'){const idx=hit(p);SK.sel=idx;SK.dragOffset=idx>=0?offsetFor(SK.objs[idx],p):null;redraw()}}
  function handleMove(e){if(!downPt)return;const p=ptFromEvent(e);
   if(SK.tool=='pen'&&SK.cur){SK.cur.pts.push(p);redraw()}
-  else if((SK.tool=='arrow'||SK.tool=='textArrow')&&SK.arrowStart){SK._preview={type:'arrow',color:SK.color,x1:SK.arrowStart.x,y1:SK.arrowStart.y,x2:p.x,y2:p.y};redraw()}
+  else if(SK.tool=='arrow'&&SK.arrowStart){SK._preview={type:'arrow',color:SK.color,x1:SK.arrowStart.x,y1:SK.arrowStart.y,x2:p.x,y2:p.y};redraw()}
   else if(SK.tool=='select'&&SK.sel>=0&&SK.dragOffset){moveObj(SK.objs[SK.sel],p,SK.dragOffset);redraw()}}
  function handleUp(e){const p=ptFromEvent(e);
   if(SK.tool=='pen'&&SK.cur){if(SK.cur.pts.length>1)SK.objs.push(SK.cur);SK.cur=null;redraw();later()}
-  else if(SK.tool=='arrow'&&SK.arrowStart){const ar={type:'arrow',color:SK.color,small:SK.compact,x1:SK.arrowStart.x,y1:SK.arrowStart.y,x2:p.x,y2:p.y};SK.arrowStart=null;SK._preview=null;
+  else if(SK.tool=='arrow'&&SK.arrowStart){const ar={type:'arrow',color:SK.color,x1:SK.arrowStart.x,y1:SK.arrowStart.y,x2:p.x,y2:p.y};SK.arrowStart=null;SK._preview=null;
    if(Math.hypot(ar.x2-ar.x1,ar.y2-ar.y1)>8){SK.objs.push(ar);later()}redraw()}
-  else if(SK.tool=='textArrow'&&SK.arrowStart){const ar={type:'textArrow',color:SK.color,small:SK.compact,x1:SK.arrowStart.x,y1:SK.arrowStart.y,x2:p.x,y2:p.y,label:''};SK.arrowStart=null;SK._preview=null;
-   if(Math.hypot(ar.x2-ar.x1,ar.y2-ar.y1)>8)askText('',val=>{if(val!=null){ar.label=(val||'').trim();SK.objs.push(ar);redraw();later()}else redraw()});else redraw()}
-  else if(SK.tool=='text')askText('',val=>{if(val){SK.objs.push({type:'text',color:SK.color,small:SK.compact,x:p.x,y:p.y,text:val});redraw();later()}});
-  else if(SK.tool=='hole'){SK.objs.push({type:'hole',color:SK.color,small:SK.compact,x:p.x,y:p.y});redraw();later()}
-  else if(SK.tool=='numHole')askText('',val=>{if(val!=null){SK.objs.push({type:'numHole',color:SK.color,small:SK.compact,x:p.x,y:p.y,label:(val||'').trim()});redraw();later()}});
+  else if(SK.tool=='text')askText('',val=>{if(val){SK.objs.push({type:'text',color:SK.color,x:p.x,y:p.y,text:val});redraw();later()}});
+  else if(SK.tool=='hole'){SK.objs.push({type:'hole',color:SK.color,x:p.x,y:p.y});redraw();later()}
   else if(SK.tool=='select'){SK.dragOffset=null;if(SK.sel>=0)later()}
   downPt=null}
- function cancelDraw(){SK.cur=null;SK.arrowStart=null;SK._preview=null;SK.dragOffset=null;downPt=null;redraw()}
- // Two-finger pinch zoom / pan; one finger keeps drawing with the active tool
- let tScale=1,tX=0,tY=0;const MIN_S=0.5,MAX_S=5;
- function applyTransform(){canvas.style.transform='translate('+tX+'px,'+tY+'px) scale('+tScale+')'}
- function clampPan(){const bw=box.clientWidth,bh=box.clientHeight;
-  if(tScale>=1){tX=Math.min(0,Math.max(bw-bw*tScale,tX));tY=Math.min(0,Math.max(bh-bh*tScale,tY))}
-  else{tX=Math.max(0,Math.min(bw-bw*tScale,tX));tY=Math.max(0,Math.min(bh-bh*tScale,tY))}}
- const active=new Map();let pinch=null;
- const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y),mid=(a,b)=>({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
- box.addEventListener('pointerdown',e=>{
-  try{box.setPointerCapture(e.pointerId)}catch(err){}
-  active.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if(active.size===1)handleDown(e);
-  else if(active.size===2){
-   cancelDraw();
-   const pts=[...active.values()],r=box.getBoundingClientRect(),m0=mid(pts[0],pts[1]),sMid={x:m0.x-r.left,y:m0.y-r.top};
-   pinch={startDist:dist(pts[0],pts[1]),originScale:tScale,contentPt:{x:(sMid.x-tX)/tScale,y:(sMid.y-tY)/tScale}}}});
- box.addEventListener('pointermove',e=>{
-  if(!active.has(e.pointerId))return;active.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if(active.size===1)handleMove(e);
-  else if(active.size===2&&pinch){
-   const pts=[...active.values()],r=box.getBoundingClientRect(),m0=mid(pts[0],pts[1]),newMid={x:m0.x-r.left,y:m0.y-r.top};
-   const ns=Math.max(MIN_S,Math.min(MAX_S,pinch.originScale*dist(pts[0],pts[1])/pinch.startDist));
-   tScale=ns;tX=newMid.x-pinch.contentPt.x*ns;tY=newMid.y-pinch.contentPt.y*ns;clampPan();applyTransform()}});
- function endPointer(e){
-  if(!active.has(e.pointerId))return;
-  const was=active.size;active.delete(e.pointerId);
-  if(was===1)handleUp(e);
-  if(active.size<2)pinch=null}
- box.addEventListener('pointerup',endPointer);
- box.addEventListener('pointercancel',endPointer);
- function resetZoom(){tScale=1;tX=0;tY=0;applyTransform()}
-
- const SVGI={
-  pen:'<path d="M4 20l1-4L17 4l3 3L8 19z"/><path d="M15 6l3 3"/>',
-  arrow:'<line x1="4" y1="20" x2="20" y2="4"/><polyline points="11 4 20 4 20 13"/>',
-  textArrow:'<line x1="4" y1="20" x2="20" y2="4"/><polyline points="11 4 20 4 20 13"/><rect x="6.5" y="9.5" width="11" height="5" fill="var(--card,#fff)"/>',
-  text:'<text x="12" y="18" font-size="16" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none">T</text>',
-  hole:'<circle cx="12" cy="12" r="8"/>',
-  numHole:'<circle cx="12" cy="12" r="8"/><text x="12" y="16" font-size="9" text-anchor="middle" fill="currentColor" stroke="none">#</text>',
-  move:'<line x1="12" y1="3" x2="12" y2="21"/><polyline points="8 7 12 3 16 7"/><polyline points="8 17 12 21 16 17"/><line x1="3" y1="12" x2="21" y2="12"/><polyline points="7 8 3 12 7 16"/><polyline points="17 8 21 12 17 16"/>',
-  undo:'<path d="M3 11a8 8 0 1 1 2.6 5.9"/><polyline points="3 5 3 11 9 11"/>',
-  del:'<path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/>',
-  zoomReset:'<circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/><line x1="7" y1="10" x2="13" y2="10"/>',
-  expand:'<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>',
-  sizeBig:'<line x1="12" y1="20" x2="12" y2="5"/><polyline points="6 11 12 5 18 11"/>',
-  sizeSmall:'<line x1="12" y1="15" x2="12" y2="9"/><polyline points="9 12 12 9 15 12"/><line x1="7" y1="19" x2="17" y2="19"/>'
- };
- function svg(path){return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+path+'</svg>'}
- function iconBtn(key,label,onClick,isOn){
-  const b=el('button',{type:'button',class:'ibtn'+(isOn?' on':'')});
-  const ic=el('span',{});ic.innerHTML=svg(SVGI[key]);
-  b.append(ic,el('span',{},label));b.onclick=onClick;return b}
-
+ canvas.onpointerdown=e=>{try{canvas.setPointerCapture(e.pointerId)}catch(err){}handleDown(e)};
+ canvas.onpointermove=handleMove;
+ canvas.onpointerup=canvas.onpointercancel=handleUp;
  const tb=el('div',{class:'tabs'});
- const TOOLS=[['pen','pen','Pen'],['arrow','arrow','Arrow'],['textArrow','textArrow','Text arrow'],['text','text','Text'],['hole','hole','Hole'],['numHole','numHole','Numbered hole'],['select','move','Move']];
- function refreshTools(){tb.querySelectorAll('.ibtn[data-tool]').forEach(x=>x.classList.toggle('on',x.dataset.tool==SK.tool))}
- TOOLS.forEach(([t,icon,label])=>{const b=iconBtn(icon,label,()=>{SK.tool=t;SK.sel=-1;refreshTools();redraw()},t==SK.tool);b.dataset.tool=t;tb.append(b)});
- tb.append(iconBtn('undo','Undo',()=>{SK.objs.pop();SK.sel=-1;redraw();later()}));
- tb.append(iconBtn('del','Delete',()=>{if(SK.sel>=0){SK.objs.splice(SK.sel,1);SK.sel=-1;redraw();later()}}));
- const expandBtn=iconBtn('expand','Expand',()=>openFullscreen());
- tb.append(expandBtn);
- tb.append(iconBtn('zoomReset','Reset zoom',()=>resetZoom()));
-
+ [['pen','Pen'],['arrow','Arrow'],['text','Text'],['hole','Hole'],['select','Move/Delete']].forEach(([t,label])=>{
+  const b=el('button',{type:'button',class:'tab'+(t==SK.tool?' on':''),'data-t':t},label);
+  b.onclick=()=>{SK.tool=t;SK.sel=-1;tb.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));redraw()};tb.append(b)});
  const row=el('div',{class:'tools'});
- const sizeBtn=iconBtn(SK.compact?'sizeSmall':'sizeBig','Size',()=>{SK.compact=!SK.compact;sizeBtn.replaceChildren();sizeBtn.classList.toggle('on',SK.compact);const ic=el('span',{});ic.innerHTML=svg(SVGI[SK.compact?'sizeSmall':'sizeBig']);sizeBtn.append(ic,el('span',{},'Size'))},SK.compact);
- row.append(sizeBtn);
  SKCOLORS.forEach((c,i)=>{const b=el('button',{class:'sw'+(c==SK.color?' on':''),type:'button','aria-label':'Colour'});b.style.background=c;b.onclick=()=>{SK.color=c;row.querySelectorAll('.sw').forEach(s=>s.classList.toggle('on',s===b))};row.append(b)});
+ row.append(btn('Undo',()=>{SK.objs.pop();SK.sel=-1;redraw();later()}));
+ row.append(btn('Delete selected',()=>{if(SK.sel>=0){SK.objs.splice(SK.sel,1);SK.sel=-1;redraw();later()}}));
+ const compactBtn=btn(SK.compact?'Normal symbols':'Small symbols',()=>{SK.compact=!SK.compact;compactBtn.textContent=SK.compact?'Normal symbols':'Small symbols';redraw()});
+ row.append(compactBtn);
  row.append(btn('Clear all',()=>{SK.objs=[];SK.sel=-1;redraw();later()}));
-
  pads.sk={c:canvas,clr:()=>{SK.objs=[];SK.sel=-1;redraw()},load:null,redraw};
  redraw();
  const inlineHolder=el('div',{class:'s2'});
  const fsOverlay=el('div',{id:'skfs',class:'hide'});
  const fsBody=el('div',{id:'skfs-body'});
- function openFullscreen(){fsBody.append(tb,box,row);fsOverlay.classList.remove('hide');redraw()}
- function closeFullscreen(){inlineHolder.append(tb,box,row);fsOverlay.classList.add('hide');redraw()}
+ function openFullscreen(){fsBody.append(tb,canvas,row);fsOverlay.classList.remove('hide');redraw()}
+ function closeFullscreen(){inlineHolder.append(tb,canvas,row);fsOverlay.classList.add('hide');redraw()}
  fsOverlay.append(el('div',{class:'hh'},el('h1',{},'Sketch'),btn('Done',closeFullscreen)),fsBody);
  document.body.append(fsOverlay);
- inlineHolder.append(el('p',{class:'hint'},'Size (toggle) controls whether the next symbol you place is small or normal — like Caps Lock. Each symbol keeps its own size after that.'),tb,box,row);
+ row.append(btn('Expand ⤢',openFullscreen));
+ inlineHolder.append(el('p',{class:'hint'},'Pen: draw freehand. Arrow: drag to draw. Hole: tap to place a circle. Text: tap to place a label (e.g. a time like 68ms). Move/Delete: tap an item to select, then drag or delete it.'),tb,canvas,row);
  return inlineHolder}
 
 const subs=(n,name,mk)=>Array.from({length:n},(_,j)=>{const i=j+1,s=el('div',{class:'sub'},el('h3',{},name+' '+i)),g=el('div',{class:'g'});mk(i).forEach(f=>g.append(f));s.append(g);return s});
 
 const REF=fld('ref','Correction of report','text',null,1);REF.querySelector('input').readOnly=true;
 sec('Blast',fld('date','Date','date'),fld('time','Time','time'),fld('blastNo','Blast #'),fld('blaster','Blaster'),fld('project','Project','text',null,1),REF);
-sec('Rock and pattern',fld('material','Type of material','sel',ROCKS,1),fld('matOther','Specify rock type','text',null,1),fld('pattern','Pattern'),fld('holes','Number of holes','num'),N('rows','Number of rows'),N('depth','Average depth (m)'),N('diam','Hole diameter (mm)'),N('volume','Overall rock volume (m³)'));
-sec('Weather',fld('weather','Weather','sel',WX,1),fld('windDir','Wind direction','sel',WD),N('windSpd','Wind speed (km/h)'));
-sec('Seismograph',...subs(4,'Seismograph',i=>[fld('sbt'+i,'Building type','text','e.g. House, Garage, Warehouse'),N('sd'+i,'Distance (m)'),fld('st'+i,'Details'),fld('sv'+i,'Vibrations (mm/s)'),fld('sb'+i,'Decibels (dB)')]));
+const vol=fld('volume','Overall rock volume (m³, auto)');vol.querySelector('input').readOnly=true;
+sec('Rock and pattern',fld('material','Type of material','sel',ROCKS,1),fld('matOther','Specify rock type','text',null,1),N('patA','Pattern: burden (m)'),N('patB','Pattern: spacing (m)'),fld('holes','Number of holes','num'),N('rows','Number of rows'),N('depth','Average depth (m)'),N('diam','Hole diameter (mm)'),vol);
+sec('Weather',fld('weather','Weather','sel',WX,1),fld('windDir','Wind direction','sel',WD),N('windSpd','Wind speed (km/h)'),N('temp','Temperature (°C)'));
+sec('Seismograph',...subs(4,'Seismograph',i=>[fld('sbt'+i,'Building type','text','e.g. House, Garage, Warehouse'),N('sd'+i,'Distance (m)'),fld('st'+i,'Details'),N('sv'+i,'Vibrations (mm/s)'),N('sb'+i,'Decibels (dB)')]));
 const pf=fld('pf','Powder factor (kg/m³, auto)');pf.querySelector('input').readOnly=true;
-sec('Initiation and loading',fld('initSys','Initiation system','text',null,1),N('maxW','Max weight × hole (kg)'),N('totW','Total weight explosives (kg)'),fld('prim','Priming','sel',['Single','Double','Triple','Other']),fld('primOther','Priming other (specify)'),N('collar','Collar (m)'),fld('stem','Stemming','sel',['¼','½','¾','Other']),fld('stemOther','Stemming other (specify)'),fld('matting','Matting'),N('mattQty','Matting qty'),pf);
+sec('Initiation and loading',fld('initSys','Initiation system','sel',['NONEL','Electric','Detcord','Other'],1),fld('initOther','Initiation system (specify)','text',null,1),N('maxW','Max weight × hole (kg)'),N('totW','Total weight explosives (kg)'),fld('primA','Priming A','sel',['Single','Double','Triple']),fld('primB','Priming B','sel',['Single','Double','Triple']),N('collar','Collar (m)'),fld('stem','Stemming','sel',['¼','½','¾']),fld('stemOther','Stemming: other'),fld('matting','Matting','sel',['Rubber tires','Cable wire','Rope','Conveyor Belt','Mesh','Other']),fld('matDet','Matting details'),N('mattQty','Matting qty'),pf);
 sec('Explosives',...subs(8,'Explosive',i=>[fld('en'+i,'Explosive name'),fld('ec'+i,'Characteristics'),N('eq'+i,'Qty')]));
 const lay=k=>{const d=el('div',{},el('h3',{},'Type '+k));LAYERS.forEach((t,i)=>d.append(chk(k+i,t)));return d};
-sec('Charge layout per hole',lay('A'),lay('B'));
+sec('Charge layout per hole',lay('A'),lay('B'),lay('C'));
 sec('Helpers',...[1,2,3,4].map(i=>fld('h'+i,'Helper '+i)));
 sec('Sketch of shot / layout',el('p',{class:'s2 hint'},'Include nearest building, North, timing and sequence.'),sketchEditor());
-sec('Notes',fld('notes','Notes (about 3 lines print on page 1; the rest goes to page 2)','area',null,1));
+sec('Notes',fld('notes','Notes (about 2 lines print on page 1; the rest goes to page 2)','area',null,1));
 sec('Attached',chk('c1','Blast Record'),chk('c2','Drill report'),chk('c3','Additional notes'),chk('c4','Other docs'),fld('docsOther','Other docs (specify)'));
 sec('Signature',pad('sg',600,200,[]));
 
 const num=s=>parseFloat(String(s).replace(',','.')),K$=k=>$('[data-k='+k+']');
-function upd(){const t=num(K$('totW').value),r=num(K$('volume').value);K$('pf').value=t>0&&r>0?(t/r).toFixed(2):'';K$('ref').closest('label').classList.toggle('hide',!K$('ref').value);[['material','matOther'],['prim','primOther'],['stem','stemOther']].forEach(([a,c])=>K$(c).closest('label').classList.toggle('hide',K$(a).value!='Other'))}
+function upd(){const t=num(K$('totW').value),vm=num(K$('patA').value)*num(K$('patB').value)*num(K$('holes').value)*num(K$('depth').value);K$('volume').value=vm>0?String(Math.round(vm*10)/10):'';K$('pf').value=t>0&&vm>0?(t/vm).toFixed(2):'';K$('ref').closest('label').classList.toggle('hide',!K$('ref').value);[['material','matOther'],['initSys','initOther']].forEach(([a,c])=>K$(c).closest('label').classList.toggle('hide',K$(a).value!='Other'))}
 const collect=()=>{const v={};document.querySelectorAll('[data-k]').forEach(e=>v[e.dataset.k]=e.type=='checkbox'?e.checked:e.value);return v};
 function save(){try{const v=collect();v._sk=pads.sk.c.toDataURL();v._skObjs=JSON.stringify(SK.objs);v._sg=pads.sg.c.toDataURL();localStorage.setItem(K,JSON.stringify(v))}catch(e){}}
 function reset(){document.querySelectorAll('[data-k]').forEach(e=>e.type=='checkbox'?e.checked=false:e.value='');pads.sk.clr();pads.sg.clr();try{localStorage.removeItem(K)}catch(e){}upd();scrollTo(0,0)}
@@ -332,88 +250,96 @@ try{const v=JSON.parse(localStorage.getItem(K)||'null');if(v){document.querySele
  if(v._sg)pads.sg.load(v._sg)}}catch(e){}
 upd();
 
-/* ---------- PDF: main Blast Report (unchanged layout, dynamic company logo) ---------- */
+/* ---------- PDF: main Blast Report (layout follows Blast_Repport.xlsx, dynamic company logo) ---------- */
 const imgFmt=u=>(u&&u.startsWith('data:image/png'))?'PNG':'JPEG';
 function build(v){
  const d=new window.jspdf.jsPDF({unit:'mm',format:'letter',encryption:{ownerPassword:(self.crypto&&crypto.randomUUID?crypto.randomUUID():String(Math.random())),userPermissions:['print']}}),X0=10.3,X1=206;
  const F=(s,b)=>d.setFont('helvetica',b?'bold':'normal').setFontSize(s).setTextColor(0);
  const T=(t,x,y,o)=>d.text(String(t??''),x,y,o);
  const ln=(a,b,c,e,w=.25,g=0)=>{d.setDrawColor(g);d.setLineWidth(w);d.line(a,b,c,e)};
- const fit=(t,x,y,w,s=9)=>{t=String(t??'');if(!t)return;F(s);while(s>6&&d.getTextWidth(t)>w){s-=.5;F(s)}T(t,x,y)};
- const lf=(lab,x,y,a,b,val,bold,sz=9.5)=>{F(sz,bold);T(lab,x,y);const a2=Math.max(a,x+d.getTextWidth(lab)+1.5);ln(a2,y+1.1,b,y+1.1,.3);fit(val,a2+1,y-.2,b-a2-1.5);return a2};
- const cb=(x,y,on)=>{d.setDrawColor(60);d.setLineWidth(.3);d.rect(x,y,3.8,3.8);if(on){ln(x+.7,y+.7,x+3.1,y+3.1,.6);ln(x+3.1,y+.7,x+.7,y+3.1,.6)}};
- const ob=(x,y,on,lab,sz=8.5)=>{cb(x,y-3,on);F(sz);T(lab,x+4.9,y);return x+4.9+d.getTextWidth(lab)+3};
- // Header
- if(v._companyLogo){try{d.addImage(v._companyLogo,imgFmt(v._companyLogo),11,6.5,27,16.8)}catch(e){}}
- F(26,1);T('Blast',46.5,13);T('Report',46.5,21.3);
- const da=lf('Date:',78,10.6,92,134.3,v.date);
- if(!v.date){d.setFont('helvetica','normal').setFontSize(9.5).setTextColor(190);T('YYYY-MM-DD',da+4,10.4)}
- lf('Time:',135.4,10.6,143.8,172.4,v.time);lf('Blast #:',173.3,10.6,191.2,X1,v.blastNo);
- lf('Blaster:',78,16.3,92,X1,v.blaster);lf('Project:',78,22,92,X1,v.project);
+ /* Geometry mirrors Blast_Repport.xlsx: 41 columns (A:AO) of 21 px and the sheet's row heights (px).
+    Every field is placed by its Excel address, e.g. fld('H4:Q4',...) = merged cell H4:Q4. B = base font (Excel 10 pt scaled to page width). */
+ const NC=41,CW=(X1-X0)/NC,MM=CW/21,Y0=8,SIG=10,B=8.6;
+ const RPX=[0],RT=[],RB=[];for(let r=1;r<=52;r++)RPX[r]=r==7?16:r==15?14:r>=27&&r<=49?18:r==50||r==51?17:r==52?18:21;
+ {let y=Y0;for(let r=1;r<=52;r++){if(r==52)y+=SIG;RT[r]=y;y+=RPX[r]*MM;RB[r]=y}} // SIG = extra room above the last row so the signature image fits
+ const cn=s=>[...s].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0)-1,gx=c=>X0+c*CW;
+ const R=s=>{const m=/^([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?$/.exec(s),c1=cn(m[1]),r1=+m[2],c2=m[3]?cn(m[3]):c1,r2=m[4]?+m[4]:r1;return{x:gx(c1),y:RT[r1],w:(c2-c1+1)*CW,h:RB[r2]-RT[r1]}};
+ // text inside a cell/range (shrinks to fit); o: sz, b(old), al('c'|'r'), va('top'|'mid')
+ const txt=(s,rg,o={})=>{s=String(s??'');if(!s)return;const r=typeof rg=='string'?R(rg):rg,pad=.7,mw=r.w-2*pad;let sz=o.sz||B;F(sz,o.b);
+  while(sz>5&&d.getTextWidth(s)>mw){sz-=.25;F(sz,o.b)}
+  let L=[s];if(d.getTextWidth(s)>mw){L=d.splitTextToSize(s,mw);if(L.length>2){L=L.slice(0,2);let l=L[1];while(l.length>1&&d.getTextWidth(l+'...')>mw)l=l.slice(0,-1);L[1]=l+'...'}} // still too long at the smallest size: wrap to 2 lines (last resort: ellipsis)
+  const h=sz*.3528,lh=h*1.1,al=o.al=='c'?'center':o.al=='r'?'right':'left',x=al=='center'?r.x+r.w/2:al=='right'?r.x+r.w-pad:r.x+pad;
+  L.forEach((t,i)=>{const y=L.length>1?r.y+r.h/2+h*.34+(i-(L.length-1)/2)*lh:o.va=='top'?r.y+h*.75+.5:o.va=='mid'?r.y+r.h/2+h*.34:r.y+r.h-1;d.text(t,x,y,{align:al})})};
+ const fld=(rg,s,o)=>{const r=R(rg);ln(r.x,r.y+r.h,r.x+r.w,r.y+r.h,.3);txt(s,r,o)}; // value cell: bottom border + text
+ const cell=(rg,on)=>{const r=R(rg),z=3.1,x=r.x+(r.w-z)/2,y=r.y+(r.h-z)/2;d.setDrawColor(60);d.setLineWidth(.3);d.rect(x,y,z,z);if(on){ln(x+.6,y+.6,x+z-.6,y+z-.6,.55);ln(x+z-.6,y+.6,x+.6,y+z-.6,.55)}}; // checkbox centred in a cell
+ const dm=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||'');return m?m[3]+'-'+m[2]+'-'+m[1]:(s||'')};
+ // Header: logo A1:F3, title G1:N3, date/time/blast #, blaster, project
+ if(v._companyLogo){try{const r=R('A1:F3'),bw=r.w-1.2,bh=r.h-1.2;let w=bw,h=bh;try{const p=d.getImageProperties(v._companyLogo),k=Math.min(bw/p.width,bh/p.height);w=p.width*k;h=p.height*k}catch(e){}d.addImage(v._companyLogo,imgFmt(v._companyLogo),r.x+.6,r.y+.6+(bh-h)/2,w,h)}catch(e){}}
+ {const r=R('G1:N3');F(17.2,1);T('Blast',r.x+r.w/2,r.y+r.h*.43,{align:'center'});T('Report',r.x+r.w/2,r.y+r.h*.92,{align:'center'})}
+ txt('Date:','O1:Q1');fld('R1:Z1','');
+ if(v.date)txt(dm(v.date),'R1:Z1',{al:'c'});else{const r=R('R1:Z1');d.setFont('helvetica','bold').setFontSize(B).setTextColor(200);T('DD-MM-YYYY',r.x+r.w/2,r.y+r.h-1,{align:'center'});d.setTextColor(0)}
+ txt('Time:','AA1:AB1');fld('AC1:AH1',v.time);txt('Blast #:','AI1:AL1');fld('AM1:AO1',v.blastNo);
+ txt('Blaster:','O2:Q2');fld('R2:AO2',v.blaster);txt('Project:','O3:Q3');fld('R3:AO3',v.project);
+ // Rock / pattern
  const mat=v.material=='Other'&&v.matOther?v.matOther:v.material;
- lf('Type of material:',11.3,26.9,43.5,91.2,mat);lf('Pattern:',92.3,26.9,105.7,154,v.pattern);lf('Number of holes:',154.2,26.9,180,X1,v.holes);
- lf('Number of rows:',11.3,32.7,43.5,63,v.rows);lf('Average depth:',63.7,32.7,86.9,105.9,v.depth?v.depth+' m':'');
- lf('Hole diameter:',106.6,32.7,129.7,143.8,v.diam?v.diam+' mm':'');lf('Overall Rock volume:',149.7,32.7,186.7,X1,v.volume?v.volume+' m³':'',1);
+ txt('Type of material:','A4:G4');fld('H4:Q4',mat);txt('Pattern (m):','R4:T4',{sz:6.9});fld('U4:X4',v.patA);txt('×','Y4',{al:'c'});fld('Z4:AD4',v.patB);txt('Number of holes:','AE4:AJ4');fld('AK4:AO4',v.holes);
+ txt('Number of rows:','A5:G5');fld('H5:K5',v.rows);txt('Average depth:','L5:P5');fld('Q5:T5',v.depth?v.depth+' m':'');txt('Hole diameter:','U5:Y5');fld('Z5:AB5',v.diam?v.diam+' mm':'');
+ txt('Overall Rock volume:','AC5:AK5',{b:1,al:'r'});fld('AL5:AO5',v.volume?v.volume+' m³':'',{b:1,al:'c'});
  // Weather
- const WXp=['Clear','Cloudy','Partially Cloudy','Light rain','Rain','Snow'],w=(v.weather||'').toLowerCase();
- if(w&&!WXp.some(a=>a.toLowerCase()==w))WXp.push(v.weather);
- F(9.5,1);T('Weather:',11.3,38.1);let x=11.3+d.getTextWidth('Weather:')+2;
- WXp.forEach(a=>{x=ob(x,38.1,a.toLowerCase()==w,a,8)});
- const fs=WXp.length>6?8:9.5;F(fs);T('Wind Direction:',x,38.1);let e=x+d.getTextWidth('Wind Direction:')+1.5;
- ln(e,39.2,e+10,39.2,.3);fit(v.windDir,e+1,37.9,8);e+=12;F(fs);T('Speed:',e,38.1);e+=d.getTextWidth('Speed:')+1.5;
- ln(e,39.2,X1,39.2,.3);fit(v.windSpd?v.windSpd+' km/h':'',e+1,37.9,X1-e-1.5);
- // Seismograph
- F(7,1);T('Seismograph:',17.7,42.4);F(6.5);
- [['Distance (meters)',53.3],['Details',108],['Vibrations (mm/s)',164.9],['Decibels (dB)',193.7]].forEach(([t,c])=>T(t,c,42.4,{align:'center'}));
- const ys=[49.2,54.9,60.3,66];ln(X0,43.8,X1,43.8);ys.forEach(y=>ln(X0,y,X1,y));
- [17,43.8,62.8,153.5,182.1].forEach(a=>ln(a,43.8,a,66,.2,120));
- ys.forEach((y,i)=>{d.setDrawColor(0);d.setLineWidth(.25);d.circle(13.3,y-2.75,1.7);F(7);T(i+1,13.3,y-1.85,{align:'center'});
-  fit(v['sbt'+(i+1)],18,y-1.5,24.5);fit(v['sd'+(i+1)],44.8,y-1.5,17);fit(v['st'+(i+1)],63.8,y-1.5,88);fit(v['sv'+(i+1)],154.5,y-1.5,26.5);fit(v['sb'+(i+1)],183.1,y-1.5,22)});
- // Initiation / priming / matting
- lf('Initiation system:',11.3,70.1,43.5,72.6,v.initSys);lf('Max weight × Hole:',73.3,70.1,105.7,134.3,v.maxW?v.maxW+' kg':'');
- lf('Total weight explosives:',135.6,70.1,176.9,X1,v.totW?v.totW+' kg':'',1);
- F(9.5);T('Priming:',11.3,75.8);let px=24.9;
- ['Single','Double','Triple','Other'].forEach(o=>{px=ob(px,75.8,v.prim==o,o+(o=='Other'?':':''),8.5)});
- ln(px-1.5,76.9,px+13,76.9,.3);fit(v.primOther,px-.5,75.6,13);
- lf('Collar:',120.9,75.8,134.3,150.6,v.collar?v.collar+' m':'');lf('Powder factor:',154.2,75.8,180,X1,v.pf?v.pf+' kg/m³':'',1);
- lf('Matting',11.3,81,24.5,90.7,v.matting);lf('Qty:',92,81,100.9,110,v.mattQty);
- F(9.5);T('Stemming:',111.4,81);let sx=129.7;
- ['¼','½','¾','Other'].forEach(o=>{sx=ob(sx,81,v.stem==o,o+(o=='Other'?':':''),8.5)});
- ln(sx-1.5,82.1,X1,82.1,.3);fit(v.stemOther,sx-.5,80.8,X1-sx);
- // Explosives table
- F(8);[['Explosive name',39],['Characteristics',84.1],['Qty',108]].forEach(([t,c])=>T(t,c,86,{align:'center'}));
- [92.1,97.7,103.2,108.9,114.3,120,125.4,131.1].forEach((y,i)=>{
-  ln(10.2,y,67.6,y,.3);ln(72.4,y,96.2,y,.3);ln(100.9,y,115.2,y,.3);
-  fit(v['en'+(i+1)],11,y-.9,56);fit(v['ec'+(i+1)],73,y-.9,22.5);fit(v['eq'+(i+1)],101.5,y-.9,13)});
- // Hole diagrams
- [[124.5,'A'],[167.4,'B']].forEach(([gx,k])=>{
-  d.setFillColor(216);d.rect(gx,86.2,14.8,44.9,'F');d.setFillColor(255);d.rect(gx+5,86.2,5.2,44.9,'F');
-  ln(gx+5.5,85.6,gx+5.5,131.1,1.1);ln(gx+9.9,85.6,gx+9.9,131.1,1.1);ln(gx+5,130.6,gx+10.4,130.6,1.1);
-  const cx=gx+14.8;F(8);T('Type '+k,cx-.7,86);
-  LAYERS.forEach((t,i)=>{const cy=88.9+i*5.57;cb(cx,cy-1.9,v[k+i]);F(8.5);
-   T(t.startsWith('Spacers')?(k=='B'?'Spac/Deck':'Spacers/Deck'):t,cx+5.4,cy+1.1)})});
- // Helpers
- F(9.5,1);T('Helpers:',11.3,133.8);ln(24.5,136.3,X1,136.3,.3);ln(X0-.1,142,X1,142,.3);ln(105.7,131.5,105.7,142,.25,80);
- F(5.5);T('1',25.3,132.8);T('2',106.5,132.8);T('3',11.3,138.6);T('4',106.5,138.6);
- fit(v.h1,27,135.4,76);fit(v.h2,108,135.4,97);fit(v.h3,13,141,91);fit(v.h4,108,141,97);
- // Sketch
- d.setFillColor(234);d.rect(X0-.1,142.4,X1-X0+.1,5.6,'F');F(10.5,1);T('Sketch of Shot/Layout  -  Notes',11.3,146.4);
- F(7.5);T('Include nearest building, North, timing and sequence',71,146.4);
- const g0=148,g1=244;d.setDrawColor(200);d.setLineWidth(.15);
- for(let a=X0;a<=X1+.1;a+=4.89)d.line(a,g0,a,g1);for(let b=g0;b<=g1+.1;b+=4.8)d.line(X0,b,X1,b);
+ txt('Weather:','A6:C6',{b:1,sz:7.7});txt(v.weather,'D6:K6');txt('Wind direction:','L6:P6',{sz:6.9});txt(v.windDir,'Q6:T6',{sz:6.9});txt('Speed (km/h):','U6:X6',{sz:6.9});fld('Y6:AB6',v.windSpd,{sz:6.9});
+ txt('Temperature:','AC6:AF6',{sz:6.9});fld('AG6:AI6',v.temp?v.temp+' °C':'',{sz:6.9});
+ // Seismograph (rows 8-11)
+ txt('Seismograph:','A7:G7',{b:1,sz:6.9,al:'c',va:'top'});
+ [['Distance (meters)','H7:K7'],['Details','L7:AD7'],['Vibrations (mm/s)','AE7:AJ7'],['Decibels (dB)','AK7:AO7']].forEach(([t,rg])=>txt(t,rg,{sz:5.2,al:'c'}));
+ [7,11,30,36].forEach(c=>ln(gx(c),RT[8],gx(c),RB[11],.2,183));
+ for(let i=1;i<=4;i++){const rr=7+i,q=R('A'+rr+':G'+rr);
+  d.setDrawColor(0);d.setLineWidth(.25);d.circle(q.x+2.9,q.y+q.h/2,1.7);F(6.5);T(i,q.x+2.9,q.y+q.h/2+.8,{align:'center'});
+  txt(v['sbt'+i],{x:q.x+5.6,y:q.y,w:q.w-5.6,h:q.h});
+  txt(v['sd'+i],'H'+rr+':K'+rr);txt(v['st'+i],'L'+rr+':AD'+rr);txt(v['sv'+i],'AE'+rr+':AJ'+rr);txt(v['sb'+i],'AK'+rr+':AO'+rr);
+  ln(X0,RB[rr],X1,RB[rr],.25)}
+ // Initiation / priming A+B / collar / powder factor / matting / stemming
+ const ini=v.initSys=='Other'&&v.initOther?v.initOther:v.initSys;
+ txt('Initiation system:','A12:G12');fld('H12:M12',ini);txt('Max weight × Hole:','N12:T12');fld('U12:Z12',v.maxW?v.maxW+' kg':'');
+ txt('Total weight explosives:','AA12:AI12',{b:1,al:'r'});fld('AJ12:AO12',v.totW?v.totW+' kg':'',{b:1});
+ txt('Priming A:','A13:D13');txt(v.primA,'E13:J13',{sz:6.9});txt('Priming B:','K13:N13');txt(v.primB,'O13:T13',{sz:6.9});
+ txt('Collar:','X13:Z13');fld('AA13:AD13',v.collar?v.collar+' m':'',{b:1});txt('Powder factor:','AE13:AI13',{b:1,sz:7.7});fld('AJ13:AO13',v.pf?v.pf+' kg/m³':'',{b:1});
+ txt('Matting','A14:C14');fld('D14:K14',v.matting);fld('L14:Q14',v.matDet);if(!v.matDet)txt('Details','L14:Q14',{sz:5.2,va:'top'});
+ txt('Qty:','R14:S14');fld('T14:U14',v.mattQty,{b:1});txt('Stemming:','V14:Y14');txt(v.stem,'Z14:AC14',{al:'c'});txt('Other:','AG14:AH14',{sz:6.9});fld('AI14:AO14',v.stemOther);
+ // Explosives table (rows 16-23) + charge layout Type A / B / C
+ txt('Explosive name','A15:L15',{sz:6.9,al:'c'});txt('Characteristics','N15:R15',{sz:6.9,al:'c'});txt('Qty','T15:V15',{sz:6.9,al:'c'});
+ const TY=[{k:'A',c:'W',l1:'X',l2:'AB',sp:'Spacers/Deck'},{k:'B',c:'AD',l1:'AE',l2:'AH',sp:'Spac/Deck'},{k:'C',c:'AJ',l1:'AK',l2:'AN',sp:'Spac/Deck'}];
+ const LBL=['Overburden','Stemming','Main charge','Primer','','Main charge','Primer','Subdrilling'];
+ TY.forEach(t=>txt('Type '+t.k,t.c+'15:'+t.l2+'15',{sz:6.9,al:'c'}));
+ for(let i=0;i<8;i++){const r=16+i;
+  fld('A'+r+':L'+r,v['en'+(i+1)]);fld('N'+r+':R'+r,v['ec'+(i+1)]);fld('T'+r+':V'+r,v['eq'+(i+1)]);
+  TY.forEach(t=>{cell(t.c+r,v[t.k+i]);txt(i==4?t.sp:LBL[i],t.l1+r+':'+t.l2+r,{sz:6.9,va:'mid'})})}
+ // Helpers (rows 24-25)
+ txt('Helpers:','A24:C24',{b:1,sz:7.7});
+ ln(gx(3),RT[24],gx(3),RB[24],.25,153);ln(gx(20),RT[24],gx(20),RB[25],.25,153);ln(X1,RT[24],X1,RB[24],.25,217);
+ ln(gx(3),RB[24],X1,RB[24],.3);ln(X0,RB[25],X1,RB[25],.3);
+ F(5.2);[['1',gx(3),24],['2',gx(20),24],['3',X0,25],['4',gx(20),25]].forEach(([n,x,r])=>T(n,x+.6,RT[r]+1.9));
+ [[v.h1,gx(3),24,gx(20)],[v.h2,gx(20),24,X1],[v.h3,X0,25,gx(20)],[v.h4,gx(20),25,X1]].forEach(([s,a,r,b])=>txt(s,{x:a+2.4,y:RT[r],w:b-a-2.4,h:RB[r]-RT[r]}));
+ // Sketch (rows 26-49): grey header, 41 x 23 cell grid, compass, drawing
+ {const r=R('A26:AO26');d.setFillColor(239);d.rect(r.x,r.y,r.w,r.h,'F')}
+ txt('Sketch of Shot/Layout  -  Notes','A26:L26',{b:1});txt('Include nearest building, North, timing and sequence','M26:AO26',{sz:6.9});
+ const g0=RT[27],g1=RB[49];d.setDrawColor(183);d.setLineWidth(.12);
+ for(let c=0;c<=NC;c++)d.line(gx(c),g0,gx(c),g1);for(let r=27;r<=49;r++)d.line(X0,RT[r],X1,RT[r]);d.line(X0,g1,X1,g1);
+ d.addImage(IMG.compass,'PNG',X1-15.6,g0+.8,14.8,14.8);
  d.addImage(pads.sk.c.toDataURL('image/png'),'PNG',X0,g0,X1-X0,g1-g0);
  d.setDrawColor(120);d.setLineWidth(.3);d.rect(X0,g0,X1-X0,g1-g0);
- // Notes
- d.rect(X0,g1,X1-X0,14);F(9.5);T('Notes:',11.3,248.3);F(8);
- const nl=d.splitTextToSize(v.notes||'',180);d.text(nl.slice(0,3),24,248.2,{lineHeightFactor:1.25});
- if(nl.length>3){F(6.5);T('(see p. 2)',11.3,252)}
- // Bottom row
- [[11.3,'c1','Blast Record'],[39.9,'c2','Drill report'],[63.7,'c3','Additional notes'],[92.1,'c4','Other docs:']].forEach(([a,k,t])=>{cb(a,265.6,v[k]);F(9);T(t,a+5.3,268.6)});
- ln(115,269.7,124.3,269.7,.3);fit(v.docsOther,115.5,268.4,8.5,8);
- F(9.5,1);T('SIGNATURE:',125.6,268.6);d.addImage(pads.sg.c.toDataURL('image/png'),'PNG',148,258.5,38.4,12.8);ln(144.5,271.3,X1,271.3,.8);
+ // Notes (rows 50-51: two printed lines, the rest goes to page 2)
+ d.setDrawColor(183);d.setLineWidth(.25);d.rect(X0,RT[50],X1-X0,RB[51]-RT[50]);d.line(X0,RB[50],X1,RB[50]);
+ txt('Notes:','A50:AO50',{sz:7.7,va:'top'});F(7.5);
+ const nl=d.splitTextToSize(v.notes||'',X1-X0-28);
+ nl.slice(0,2).forEach((s,i)=>T(s,X0+12,RT[50+i]+3));
+ if(nl.length>2){F(5.5);T('(see p. 2)',X1-.8,RB[51]-.8,{align:'right'})}
+ // Attached documents + signature (row 52)
+ [['A52','B52:F52','Blast Record','c1'],['G52','H52:K52','Drill report','c2'],['L52','M52:Q52','Additional notes','c3'],['R52','S52:V52','Other docs:','c4']].forEach(([c,l,t,k])=>{cell(c,v[k]);txt(t,l,{sz:6.9})});
+ fld('W52:X52',v.docsOther,{sz:6.9});txt('SIGNATURE:','Y52:AB52',{sz:6.9,b:1});
+ {const r=R('AC52:AO52');ln(r.x,r.y+r.h,r.x+r.w,r.y+r.h,.5);d.addImage(pads.sg.c.toDataURL('image/png'),'PNG',r.x+3,r.y+r.h-12.4,36,12)}
  if(v.ref){F(7,1);T('CORRECTION OF '+v.ref,X0,5)}
  F(6.5);T('Report ID '+(v._id||'')+'  ·  Generated '+(v._created||'').replace('T',' ').slice(0,19)+' UTC  ·  Final read-only version',X0,276.5);
- if(nl.length>3){d.addPage();F(14,1);T('Blast Report - Notes (continued)',X0,16);F(10);d.text(d.splitTextToSize(v.notes,195),X0,25)}
+ if(nl.length>2){d.addPage();F(14,1);T('Blast Report - Notes (continued)',X0,16);F(10);d.text(d.splitTextToSize(v.notes,195),X0,25)}
  return d}
 
 /* ---------- PDF: extra sections (Blast Record / photos / notes) ---------- */
@@ -468,8 +394,8 @@ function finalizeDoc(v,ex){
 
 /* ---------- Storage: reports, companies, projects ---------- */
 const sha=async b=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',await b.arrayBuffer()))].map(x=>x.toString(16).padStart(2,'0')).join('');
-const dbp=new Promise((ok,no)=>{const r=indexedDB.open('blast',3);
- r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains('reports'))d.createObjectStore('reports',{keyPath:'id'});if(!d.objectStoreNames.contains('companies'))d.createObjectStore('companies',{keyPath:'id'});if(!d.objectStoreNames.contains('projects'))d.createObjectStore('projects',{keyPath:'id'});if(!d.objectStoreNames.contains('drafts'))d.createObjectStore('drafts',{keyPath:'id'})};
+const dbp=new Promise((ok,no)=>{const r=indexedDB.open('blast',2);
+ r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains('reports'))d.createObjectStore('reports',{keyPath:'id'});if(!d.objectStoreNames.contains('companies'))d.createObjectStore('companies',{keyPath:'id'});if(!d.objectStoreNames.contains('projects'))d.createObjectStore('projects',{keyPath:'id'})};
  r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)});
 const tx=async(store,mode,f)=>{const d=await dbp;return new Promise((ok,no)=>{const t=d.transaction(store,mode),q=f(t.objectStore(store));t.oncomplete=()=>ok(q.result);t.onerror=()=>no(t.error)})};
 async function out(b,n){const f=new File([b],n,{type:'application/pdf'});
@@ -509,59 +435,6 @@ async function showHist(){
    c.append(t);return c}));
  H.classList.remove('hide');H.scrollTo(0,0)}
 $('#histBtn').onclick=()=>showHist().catch(e=>toast('Error: '+(e&&e.message||e)));
-
-/* ---------- Drafts: pause a report and come back to it later ---------- */
-const D=el('div',{id:'drafts',class:'hide'});document.body.append(D);
-async function saveDraft(){
- try{
-  const v=collect();
-  const rec={id:currentDraftId||('D-'+Date.now().toString(36).toUpperCase()),
-   updated:new Date().toISOString(),
-   companyId:ST.company?ST.company.id:null,companyName:ST.company?ST.company.name:'',
-   projectId:ST.project?ST.project.id:null,projectName:ST.project?ST.project.name:'',
-   blastNo:v.blastNo,date:v.date,blaster:v.blaster,
-   form:v,skObjs:SK.objs,sg:pads.sg.c.toDataURL(),ex:EX};
-  await tx('drafts','readwrite',s=>s.put(rec));
-  toast('Saved as draft'+(v.blastNo?' — Blast #'+v.blastNo:''));
-  currentDraftId=null;reset();EX=defaultEX();try{localStorage.removeItem(EXK)}catch(e){}
-  ST={company:null,project:null,blastNo:null};setupUI={mode:'company-list',editing:null};
-  showScreen('scr-setup');renderSetup()
- }catch(e){toast('Error: '+(e&&e.message||e))}}
-async function resumeDraft(id){
- try{
-  const rec=await tx('drafts','readonly',s=>s.get(id));
-  if(!rec){toast('Draft not found');return}
-  let company=null,project=null;
-  if(rec.companyId)company=await tx('companies','readonly',s=>s.get(rec.companyId));
-  if(company&&rec.projectId)project=await tx('projects','readonly',s=>s.get(rec.projectId));
-  if(!company){toast('Original company was deleted — pick a company and project to continue this draft');ST={company:null,project:null,blastNo:rec.blastNo||null}}
-  else if(!project){toast('Original project was deleted — pick a project to continue this draft');ST={company,project:null,blastNo:rec.blastNo||null}}
-  else ST={company,project,blastNo:rec.blastNo||null};
-  currentDraftId=rec.id;
-  document.querySelectorAll('[data-k]').forEach(e=>{const x=rec.form&&rec.form[e.dataset.k];if(x!==undefined)e.type=='checkbox'?e.checked=x:e.value=x});
-  SK.objs=rec.skObjs||[];SK.sel=-1;if(pads.sk&&pads.sk.redraw)pads.sk.redraw();
-  if(rec.sg&&pads.sg)pads.sg.load(rec.sg);
-  EX={...defaultEX(),...(rec.ex||{}),blastRecord:{...defaultBR(),...((rec.ex&&rec.ex.blastRecord)||{})}};
-  upd();later();saveEX();
-  D.classList.add('hide');
-  if(ST.company&&ST.project){$('#ctx').textContent='Company: '+ST.company.name+'  ·  Project: '+ST.project.name;showScreen('scr-report')}
-  else{showScreen('scr-setup');renderSetup()}
-  scrollTo(0,0)
- }catch(e){toast('Error: '+(e&&e.message||e))}}
-async function showDrafts(){
- const all=(await tx('drafts','readonly',s=>s.getAll())).sort((a,b)=>b.updated.localeCompare(a.updated));
- D.replaceChildren(el('div',{class:'hh'},el('h1',{},'Drafts'),btn('Close',()=>D.classList.add('hide'))),
-  el('p',{class:'hint'},'Paused reports. Resume to pick up where you left off, from any device, as long as they were saved on this device.'));
- if(!all.length)D.append(el('p',{class:'hint'},'No saved drafts.'));
- all.forEach(r=>{
-  const c=el('section',{class:'sec'},el('h2',{},(r.blastNo?'Blast #'+r.blastNo+' · ':'')+(r.date||'no date')),
-   el('p',{class:'hint'},(r.companyName||'(no company)')+' · '+(r.projectName||'(no project)')+' · saved '+r.updated.slice(0,16).replace('T',' ')+' UTC'));
-  const t=el('div',{class:'tools'});
-  t.append(btn('Resume',()=>resumeDraft(r.id)));
-  t.append(btn('Delete',async()=>{if(!confirm('Delete this draft? This cannot be undone.'))return;await tx('drafts','readwrite',s=>s.delete(r.id));showDrafts()}));
-  c.append(t);D.append(c)});
- D.classList.remove('hide');D.scrollTo(0,0)}
-$('#draftsBtn').onclick=()=>showDrafts().catch(e=>toast('Error: '+(e&&e.message||e)));
 
 /* ---------- Image helpers ---------- */
 function fileToImage(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=r.result};r.onerror=rej;r.readAsDataURL(file)})}
@@ -624,7 +497,7 @@ async function renderCompanyStep(root){
  root.append(s)}
 async function renderProjectStep(root){
  if(setupUI.mode=='project-form'){root.append(projectFormUI(setupUI.editing,async obj=>{
-   const rec=setupUI.editing?{...setupUI.editing,...obj}:{id:'P-'+Date.now().toString(36),companyId:ST.company.id,name:obj.name,counter:obj.counter||0};
+   const rec=setupUI.editing?{...setupUI.editing,...obj}:{id:'P-'+Date.now().toString(36),companyId:ST.company.id,counter:obj.counter||0};
    await tx('projects','readwrite',s=>s.put(rec));setupUI={mode:'project-list',editing:null};ST.project=rec;ST.blastNo=null;renderSetup()},
   ()=>{setupUI={mode:'project-list',editing:null};renderSetup()}));return}
  const head=el('div',{class:'hh'},el('h2',{},'2. Project — '+ST.company.name),btn('Change company',()=>{ST.company=null;ST.project=null;renderSetup()}));
@@ -658,7 +531,6 @@ function renderBlastNoStep(root){
 function defaultBR(){return{blaster:'',blastDate:'',tasks:TASKS.map(t=>({task:t,done:false,time:'',date:'',notes:''}))}}
 function defaultEX(){return{tabs:[],active:null,blastRecord:defaultBR(),drillPhotos:[],notes:'',otherPhotos:[]}}
 let EX=defaultEX();const EXK='blastExtras';
-let currentDraftId=null;
 let tm2;const later2=()=>{clearTimeout(tm2);tm2=setTimeout(saveEX,500)};
 function saveEX(){try{localStorage.setItem(EXK,JSON.stringify(EX))}catch(e){}}
 try{const s=JSON.parse(localStorage.getItem(EXK)||'null');if(s)EX={...defaultEX(),...s,blastRecord:{...defaultBR(),...(s.blastRecord||{})}}}catch(e){}
@@ -705,37 +577,13 @@ function renderExtras(){
  else if(EX.active=='notes')root.append(tabNotes());
  else if(EX.active=='other')root.append(photoTab('otherPhotos','Other document photos (1–2)'))}
 
-/* ---------- Validation: required fields before Continue ---------- */
-const ALWAYS_REQUIRED=['date','time','blastNo','blaster','project','material','pattern','holes','rows','depth','diam','volume','weather','windDir','windSpd','initSys','maxW','totW','prim','collar','stem','matting','mattQty','notes'];
-function fieldLabel(k){const inp=K$(k);const lab=inp&&inp.closest('label');const span=lab&&lab.querySelector('span');return span?span.textContent:k}
-function validateReport(v){
- const missing=[];
- ALWAYS_REQUIRED.forEach(k=>{if(!String(v[k]||'').trim())missing.push(fieldLabel(k))});
- if(v.material=='Other'&&!String(v.matOther||'').trim())missing.push(fieldLabel('matOther'));
- if(v.prim=='Other'&&!String(v.primOther||'').trim())missing.push(fieldLabel('primOther'));
- if(v.stem=='Other'&&!String(v.stemOther||'').trim())missing.push(fieldLabel('stemOther'));
- if(v.c4&&!String(v.docsOther||'').trim())missing.push(fieldLabel('docsOther'));
- const filled=k=>v[k]===true||(typeof v[k]=='string'&&v[k].trim());
- const groups=[
-  ['Seismograph',Array.from({length:4},(_,j)=>['sbt','sd','st','sv','sb'].map(p=>p+(j+1))).flat()],
-  ['Explosives',Array.from({length:8},(_,j)=>['en','ec','eq'].map(p=>p+(j+1))).flat()],
-  ['Charge layout per hole',[...Array.from({length:8},(_,j)=>'A'+j),...Array.from({length:8},(_,j)=>'B'+j)]],
-  ['Helpers',['h1','h2','h3','h4']]
- ];
- groups.forEach(([label,keys])=>{if(!keys.some(filled))missing.push(label+' (fill in at least one)')});
- return missing}
-
 /* ---------- Navigation & finalize ---------- */
-function fullReset(){currentDraftId=null;reset();EX=defaultEX();try{localStorage.removeItem(EXK)}catch(e){}ST={company:null,project:null,blastNo:null};setupUI={mode:'company-list',editing:null};showScreen('scr-setup');renderSetup()}
+function fullReset(){reset();EX=defaultEX();try{localStorage.removeItem(EXK)}catch(e){}ST={company:null,project:null,blastNo:null};setupUI={mode:'company-list',editing:null};showScreen('scr-setup');renderSetup()}
 function wireNewBtn(b){let armed=0;const orig=b.textContent;b.onclick=()=>{if(!armed){armed=1;b.textContent='Tap again to clear';setTimeout(()=>{armed=0;b.textContent=orig},3000);return}armed=0;b.textContent=orig;fullReset()}}
 wireNewBtn($('#rNew'));
-$('#rDraft').onclick=()=>saveDraft();
 $('#ePrev').onclick=()=>previewPDF();
 $('#rBack').onclick=()=>{showScreen('scr-setup');renderSetup()};
-$('#rNext').onclick=()=>{const v=collect();
- const missing=validateReport(v);
- if(missing.length){toast('Please complete: '+missing.slice(0,4).join(', ')+(missing.length>4?', and '+(missing.length-4)+' more':''));return}
- const tabs=[];if(v.c1)tabs.push('br');if(v.c2)tabs.push('drill');if(v.c3)tabs.push('notes');if(v.c4)tabs.push('other');
+$('#rNext').onclick=()=>{const v=collect();const tabs=[];if(v.c1)tabs.push('br');if(v.c2)tabs.push('drill');if(v.c3)tabs.push('notes');if(v.c4)tabs.push('other');
  EX.tabs=tabs;EX.blastRecord.blaster=EX.blastRecord.blaster||v.blaster;EX.blastRecord.blastDate=EX.blastRecord.blastDate||v.date;
  renderExtras();showScreen('scr-extras');scrollTo(0,0)};
 $('#eBack').onclick=()=>{showScreen('scr-report');scrollTo(0,0)};
@@ -749,7 +597,6 @@ let fin=0;$('#go').onclick=async function(){
   const doc=finalizeDoc(v,EX),blob=doc.output('blob'),hash=await sha(blob);
   await tx('reports','readwrite',s=>s.add({id:v._id,created:v._created,date:v.date,blastNo:v.blastNo,project:v.project,company:ST.company?ST.company.name:'',ref:v.ref,name:nm,hash,pdf:blob,data:v}));
   if(ST.project){const n=parseInt(String(v.blastNo).replace(/[^\d]/g,''),10);if(!isNaN(n)&&n>(ST.project.counter||0)){ST.project.counter=n;await tx('projects','readwrite',s=>s.put(ST.project))}}
-  if(currentDraftId)await tx('drafts','readwrite',s=>s.delete(currentDraftId)).catch(()=>{});
   const savedId=v._id;fullReset();toast('Saved to history: '+savedId);await out(blob,nm)
  }catch(e){toast('Error: '+(e&&e.message||e))}};
 
