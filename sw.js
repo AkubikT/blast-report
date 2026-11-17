@@ -1,4 +1,4 @@
-const V='blast-v1',CORE=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'],
+const V='blast-v2',CORE=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'],
 EXT=['https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(V).then(async c=>{await c.addAll(CORE);await Promise.all(EXT.map(u=>fetch(new Request(u,{mode:'no-cors'})).then(r=>c.put(u,r)).catch(()=>{})))}).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!=V).map(x=>caches.delete(x)))).then(()=>clients.claim())));
