@@ -35,7 +35,7 @@ input[readonly]{opacity:.75}
 .c{display:flex;align-items:center;gap:10px;min-height:38px}
 .c input{width:22px;height:22px;accent-color:var(--ink)}
 .pad{display:block;width:100%;height:auto;background:#fff;border:2px solid var(--ink);border-radius:4px;touch-action:none}
-.pad.grid{background-image:linear-gradient(#d3d7da 1px,transparent 1px),linear-gradient(90deg,#d3d7da 1px,transparent 1px);background-size:2.439% 4.348%}
+.pad.grid{background-image:linear-gradient(#d3d7da 1px,transparent 1px),linear-gradient(90deg,#d3d7da 1px,transparent 1px);background-size:2.5% 5%}
 .tools{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
 button{font:600 16px Barlow,system-ui,sans-serif;min-height:46px;padding:0 16px;border-radius:6px;border:2px solid var(--ink);background:var(--card);color:var(--ink)}
 .sw{width:38px;min-height:38px;padding:0;border-radius:50%;border:2px solid var(--line)}
@@ -139,7 +139,7 @@ function pad(id,w,h,cols){
 
 /* ---------- Sketch editor: editable objects (pen / arrow+label / text / hole / move-delete) ---------- */
 function sketchEditor(){
- const W=800,H=385;
+ const W=800,H=392;
  const canvas=el('canvas',{width:W,height:H,class:'pad grid'});
  const ctx=canvas.getContext('2d');
  function measure(o){ctx.font=(W*0.022*(SK.compact?0.6:1))+'px Barlow, sans-serif';return ctx.measureText(o.text||'').width}
@@ -224,23 +224,22 @@ const subs=(n,name,mk)=>Array.from({length:n},(_,j)=>{const i=j+1,s=el('div',{cl
 
 const REF=fld('ref','Correction of report','text',null,1);REF.querySelector('input').readOnly=true;
 sec('Blast',fld('date','Date','date'),fld('time','Time','time'),fld('blastNo','Blast #'),fld('blaster','Blaster'),fld('project','Project','text',null,1),REF);
-const vol=fld('volume','Overall rock volume (m³, auto)');vol.querySelector('input').readOnly=true;
-sec('Rock and pattern',fld('material','Type of material','sel',ROCKS,1),fld('matOther','Specify rock type','text',null,1),N('patA','Pattern: burden (m)'),N('patB','Pattern: spacing (m)'),fld('holes','Number of holes','num'),N('rows','Number of rows'),N('depth','Average depth (m)'),N('diam','Hole diameter (mm)'),vol);
-sec('Weather',fld('weather','Weather','sel',WX,1),fld('windDir','Wind direction','sel',WD),N('windSpd','Wind speed (km/h)'),N('temp','Temperature (°C)'));
+sec('Rock and pattern',fld('material','Type of material','sel',ROCKS,1),fld('matOther','Specify rock type','text',null,1),fld('pattern','Pattern'),fld('holes','Number of holes','num'),N('rows','Number of rows'),N('depth','Average depth (m)'),N('diam','Hole diameter (mm)'),N('volume','Overall rock volume (m³)'));
+sec('Weather',fld('weather','Weather','sel',WX,1),fld('windDir','Wind direction','sel',WD),N('windSpd','Wind speed (km/h)'));
 sec('Seismograph',...subs(4,'Seismograph',i=>[fld('sbt'+i,'Building type','text','e.g. House, Garage, Warehouse'),N('sd'+i,'Distance (m)'),fld('st'+i,'Details'),N('sv'+i,'Vibrations (mm/s)'),N('sb'+i,'Decibels (dB)')]));
 const pf=fld('pf','Powder factor (kg/m³, auto)');pf.querySelector('input').readOnly=true;
-sec('Initiation and loading',fld('initSys','Initiation system','sel',['NONEL','Electric','Detcord','Other'],1),fld('initOther','Initiation system (specify)','text',null,1),N('maxW','Max weight × hole (kg)'),N('totW','Total weight explosives (kg)'),fld('primA','Priming A','sel',['Single','Double','Triple']),fld('primB','Priming B','sel',['Single','Double','Triple']),N('collar','Collar (m)'),fld('stem','Stemming','sel',['¼','½','¾']),fld('stemOther','Stemming: other'),fld('matting','Matting','sel',['Rubber tires','Cable wire','Rope','Conveyor Belt','Mesh','Other']),fld('matDet','Matting details'),N('mattQty','Matting qty'),pf);
+sec('Initiation and loading',fld('initSys','Initiation system','text',null,1),N('maxW','Max weight × hole (kg)'),N('totW','Total weight explosives (kg)'),fld('prim','Priming','sel',['Single','Double','Triple','Other']),fld('primOther','Priming other (specify)'),N('collar','Collar (m)'),fld('stem','Stemming','sel',['¼','½','¾','Other']),fld('stemOther','Stemming other (specify)'),fld('matting','Matting'),N('mattQty','Matting qty'),pf);
 sec('Explosives',...subs(8,'Explosive',i=>[fld('en'+i,'Explosive name'),fld('ec'+i,'Characteristics'),N('eq'+i,'Qty')]));
 const lay=k=>{const d=el('div',{},el('h3',{},'Type '+k));LAYERS.forEach((t,i)=>d.append(chk(k+i,t)));return d};
-sec('Charge layout per hole',lay('A'),lay('B'),lay('C'));
+sec('Charge layout per hole',lay('A'),lay('B'));
 sec('Helpers',...[1,2,3,4].map(i=>fld('h'+i,'Helper '+i)));
 sec('Sketch of shot / layout',el('p',{class:'s2 hint'},'Include nearest building, North, timing and sequence.'),sketchEditor());
-sec('Notes',fld('notes','Notes (about 2 lines print on page 1; the rest goes to page 2)','area',null,1));
+sec('Notes',fld('notes','Notes (about 3 lines print on page 1; the rest goes to page 2)','area',null,1));
 sec('Attached',chk('c1','Blast Record'),chk('c2','Drill report'),chk('c3','Additional notes'),chk('c4','Other docs'),fld('docsOther','Other docs (specify)'));
 sec('Signature',pad('sg',600,200,[]));
 
 const num=s=>parseFloat(String(s).replace(',','.')),K$=k=>$('[data-k='+k+']');
-function upd(){const t=num(K$('totW').value),vm=num(K$('patA').value)*num(K$('patB').value)*num(K$('holes').value)*num(K$('depth').value);K$('volume').value=vm>0?String(Math.round(vm*10)/10):'';K$('pf').value=t>0&&vm>0?(t/vm).toFixed(2):'';K$('ref').closest('label').classList.toggle('hide',!K$('ref').value);[['material','matOther'],['initSys','initOther']].forEach(([a,c])=>K$(c).closest('label').classList.toggle('hide',K$(a).value!='Other'))}
+function upd(){const t=num(K$('totW').value),r=num(K$('volume').value);K$('pf').value=t>0&&r>0?(t/r).toFixed(2):'';K$('ref').closest('label').classList.toggle('hide',!K$('ref').value);[['material','matOther'],['prim','primOther'],['stem','stemOther']].forEach(([a,c])=>K$(c).closest('label').classList.toggle('hide',K$(a).value!='Other'))}
 const collect=()=>{const v={};document.querySelectorAll('[data-k]').forEach(e=>v[e.dataset.k]=e.type=='checkbox'?e.checked:e.value);return v};
 function save(){try{const v=collect();v._sk=pads.sk.c.toDataURL();v._skObjs=JSON.stringify(SK.objs);v._sg=pads.sg.c.toDataURL();localStorage.setItem(K,JSON.stringify(v))}catch(e){}}
 function reset(){document.querySelectorAll('[data-k]').forEach(e=>e.type=='checkbox'?e.checked=false:e.value='');pads.sk.clr();pads.sg.clr();try{localStorage.removeItem(K)}catch(e){}upd();scrollTo(0,0)}
@@ -250,96 +249,89 @@ try{const v=JSON.parse(localStorage.getItem(K)||'null');if(v){document.querySele
  if(v._sg)pads.sg.load(v._sg)}}catch(e){}
 upd();
 
-/* ---------- PDF: main Blast Report (layout follows Blast_Repport.xlsx, dynamic company logo) ---------- */
+/* ---------- PDF: main Blast Report (unchanged layout, dynamic company logo) ---------- */
 const imgFmt=u=>(u&&u.startsWith('data:image/png'))?'PNG':'JPEG';
 function build(v){
  const d=new window.jspdf.jsPDF({unit:'mm',format:'letter',encryption:{ownerPassword:(self.crypto&&crypto.randomUUID?crypto.randomUUID():String(Math.random())),userPermissions:['print']}}),X0=10.3,X1=206;
  const F=(s,b)=>d.setFont('helvetica',b?'bold':'normal').setFontSize(s).setTextColor(0);
  const T=(t,x,y,o)=>d.text(String(t??''),x,y,o);
  const ln=(a,b,c,e,w=.25,g=0)=>{d.setDrawColor(g);d.setLineWidth(w);d.line(a,b,c,e)};
- /* Geometry mirrors Blast_Repport.xlsx: 41 columns (A:AO) of 21 px and the sheet's row heights (px).
-    Every field is placed by its Excel address, e.g. fld('H4:Q4',...) = merged cell H4:Q4. B = base font (Excel 10 pt scaled to page width). */
- const NC=41,CW=(X1-X0)/NC,MM=CW/21,Y0=8,SIG=10,B=8.6;
- const RPX=[0],RT=[],RB=[];for(let r=1;r<=52;r++)RPX[r]=r==7?16:r==15?14:r>=27&&r<=49?18:r==50||r==51?17:r==52?18:21;
- {let y=Y0;for(let r=1;r<=52;r++){if(r==52)y+=SIG;RT[r]=y;y+=RPX[r]*MM;RB[r]=y}} // SIG = extra room above the last row so the signature image fits
- const cn=s=>[...s].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0)-1,gx=c=>X0+c*CW;
- const R=s=>{const m=/^([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?$/.exec(s),c1=cn(m[1]),r1=+m[2],c2=m[3]?cn(m[3]):c1,r2=m[4]?+m[4]:r1;return{x:gx(c1),y:RT[r1],w:(c2-c1+1)*CW,h:RB[r2]-RT[r1]}};
- // text inside a cell/range (shrinks to fit); o: sz, b(old), al('c'|'r'), va('top'|'mid')
- const txt=(s,rg,o={})=>{s=String(s??'');if(!s)return;const r=typeof rg=='string'?R(rg):rg,pad=.7,mw=r.w-2*pad;let sz=o.sz||B;F(sz,o.b);
-  while(sz>5&&d.getTextWidth(s)>mw){sz-=.25;F(sz,o.b)}
-  let L=[s];if(d.getTextWidth(s)>mw){L=d.splitTextToSize(s,mw);if(L.length>2){L=L.slice(0,2);let l=L[1];while(l.length>1&&d.getTextWidth(l+'...')>mw)l=l.slice(0,-1);L[1]=l+'...'}} // still too long at the smallest size: wrap to 2 lines (last resort: ellipsis)
-  const h=sz*.3528,lh=h*1.1,al=o.al=='c'?'center':o.al=='r'?'right':'left',x=al=='center'?r.x+r.w/2:al=='right'?r.x+r.w-pad:r.x+pad;
-  L.forEach((t,i)=>{const y=L.length>1?r.y+r.h/2+h*.34+(i-(L.length-1)/2)*lh:o.va=='top'?r.y+h*.75+.5:o.va=='mid'?r.y+r.h/2+h*.34:r.y+r.h-1;d.text(t,x,y,{align:al})})};
- const fld=(rg,s,o)=>{const r=R(rg);ln(r.x,r.y+r.h,r.x+r.w,r.y+r.h,.3);txt(s,r,o)}; // value cell: bottom border + text
- const cell=(rg,on)=>{const r=R(rg),z=3.1,x=r.x+(r.w-z)/2,y=r.y+(r.h-z)/2;d.setDrawColor(60);d.setLineWidth(.3);d.rect(x,y,z,z);if(on){ln(x+.6,y+.6,x+z-.6,y+z-.6,.55);ln(x+z-.6,y+.6,x+.6,y+z-.6,.55)}}; // checkbox centred in a cell
- const dm=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||'');return m?m[3]+'-'+m[2]+'-'+m[1]:(s||'')};
- // Header: logo A1:F3, title G1:N3, date/time/blast #, blaster, project
- if(v._companyLogo){try{const r=R('A1:F3'),bw=r.w-1.2,bh=r.h-1.2;let w=bw,h=bh;try{const p=d.getImageProperties(v._companyLogo),k=Math.min(bw/p.width,bh/p.height);w=p.width*k;h=p.height*k}catch(e){}d.addImage(v._companyLogo,imgFmt(v._companyLogo),r.x+.6,r.y+.6+(bh-h)/2,w,h)}catch(e){}}
- {const r=R('G1:N3');F(17.2,1);T('Blast',r.x+r.w/2,r.y+r.h*.43,{align:'center'});T('Report',r.x+r.w/2,r.y+r.h*.92,{align:'center'})}
- txt('Date:','O1:Q1');fld('R1:Z1','');
- if(v.date)txt(dm(v.date),'R1:Z1',{al:'c'});else{const r=R('R1:Z1');d.setFont('helvetica','bold').setFontSize(B).setTextColor(200);T('DD-MM-YYYY',r.x+r.w/2,r.y+r.h-1,{align:'center'});d.setTextColor(0)}
- txt('Time:','AA1:AB1');fld('AC1:AH1',v.time);txt('Blast #:','AI1:AL1');fld('AM1:AO1',v.blastNo);
- txt('Blaster:','O2:Q2');fld('R2:AO2',v.blaster);txt('Project:','O3:Q3');fld('R3:AO3',v.project);
- // Rock / pattern
+ const fit=(t,x,y,w,s=9)=>{t=String(t??'');if(!t)return;F(s);while(s>6&&d.getTextWidth(t)>w){s-=.5;F(s)}T(t,x,y)};
+ const lf=(lab,x,y,a,b,val,bold,sz=9.5)=>{F(sz,bold);T(lab,x,y);const a2=Math.max(a,x+d.getTextWidth(lab)+1.5);ln(a2,y+1.1,b,y+1.1,.3);fit(val,a2+1,y-.2,b-a2-1.5);return a2};
+ const cb=(x,y,on)=>{d.setDrawColor(60);d.setLineWidth(.3);d.rect(x,y,3.8,3.8);if(on){ln(x+.7,y+.7,x+3.1,y+3.1,.6);ln(x+3.1,y+.7,x+.7,y+3.1,.6)}};
+ const ob=(x,y,on,lab,sz=8.5)=>{cb(x,y-3,on);F(sz);T(lab,x+4.9,y);return x+4.9+d.getTextWidth(lab)+3};
+ // Header
+ if(v._companyLogo){try{d.addImage(v._companyLogo,imgFmt(v._companyLogo),11,6.5,27,16.8)}catch(e){}}
+ F(26,1);T('Blast',46.5,13);T('Report',46.5,21.3);
+ const da=lf('Date:',78,10.6,92,134.3,v.date);
+ if(!v.date){d.setFont('helvetica','normal').setFontSize(9.5).setTextColor(190);T('YYYY-MM-DD',da+4,10.4)}
+ lf('Time:',135.4,10.6,143.8,172.4,v.time);lf('Blast #:',173.3,10.6,191.2,X1,v.blastNo);
+ lf('Blaster:',78,16.3,92,X1,v.blaster);lf('Project:',78,22,92,X1,v.project);
  const mat=v.material=='Other'&&v.matOther?v.matOther:v.material;
- txt('Type of material:','A4:G4');fld('H4:Q4',mat);txt('Pattern (m):','R4:T4',{sz:6.9});fld('U4:X4',v.patA);txt('×','Y4',{al:'c'});fld('Z4:AD4',v.patB);txt('Number of holes:','AE4:AJ4');fld('AK4:AO4',v.holes);
- txt('Number of rows:','A5:G5');fld('H5:K5',v.rows);txt('Average depth:','L5:P5');fld('Q5:T5',v.depth?v.depth+' m':'');txt('Hole diameter:','U5:Y5');fld('Z5:AB5',v.diam?v.diam+' mm':'');
- txt('Overall Rock volume:','AC5:AK5',{b:1,al:'r'});fld('AL5:AO5',v.volume?v.volume+' m³':'',{b:1,al:'c'});
+ lf('Type of material:',11.3,26.9,43.5,91.2,mat);lf('Pattern:',92.3,26.9,105.7,154,v.pattern);lf('Number of holes:',154.2,26.9,180,X1,v.holes);
+ lf('Number of rows:',11.3,32.7,43.5,63,v.rows);lf('Average depth:',63.7,32.7,86.9,105.9,v.depth?v.depth+' m':'');
+ lf('Hole diameter:',106.6,32.7,129.7,143.8,v.diam?v.diam+' mm':'');lf('Overall Rock volume:',149.7,32.7,186.7,X1,v.volume?v.volume+' m³':'',1);
  // Weather
- txt('Weather:','A6:C6',{b:1,sz:7.7});txt(v.weather,'D6:K6');txt('Wind direction:','L6:P6',{sz:6.9});txt(v.windDir,'Q6:T6',{sz:6.9});txt('Speed (km/h):','U6:X6',{sz:6.9});fld('Y6:AB6',v.windSpd,{sz:6.9});
- txt('Temperature:','AC6:AF6',{sz:6.9});fld('AG6:AI6',v.temp?v.temp+' °C':'',{sz:6.9});
- // Seismograph (rows 8-11)
- txt('Seismograph:','A7:G7',{b:1,sz:6.9,al:'c',va:'top'});
- [['Distance (meters)','H7:K7'],['Details','L7:AD7'],['Vibrations (mm/s)','AE7:AJ7'],['Decibels (dB)','AK7:AO7']].forEach(([t,rg])=>txt(t,rg,{sz:5.2,al:'c'}));
- [7,11,30,36].forEach(c=>ln(gx(c),RT[8],gx(c),RB[11],.2,183));
- for(let i=1;i<=4;i++){const rr=7+i,q=R('A'+rr+':G'+rr);
-  d.setDrawColor(0);d.setLineWidth(.25);d.circle(q.x+2.9,q.y+q.h/2,1.7);F(6.5);T(i,q.x+2.9,q.y+q.h/2+.8,{align:'center'});
-  txt(v['sbt'+i],{x:q.x+5.6,y:q.y,w:q.w-5.6,h:q.h});
-  txt(v['sd'+i],'H'+rr+':K'+rr);txt(v['st'+i],'L'+rr+':AD'+rr);txt(v['sv'+i],'AE'+rr+':AJ'+rr);txt(v['sb'+i],'AK'+rr+':AO'+rr);
-  ln(X0,RB[rr],X1,RB[rr],.25)}
- // Initiation / priming A+B / collar / powder factor / matting / stemming
- const ini=v.initSys=='Other'&&v.initOther?v.initOther:v.initSys;
- txt('Initiation system:','A12:G12');fld('H12:M12',ini);txt('Max weight × Hole:','N12:T12');fld('U12:Z12',v.maxW?v.maxW+' kg':'');
- txt('Total weight explosives:','AA12:AI12',{b:1,al:'r'});fld('AJ12:AO12',v.totW?v.totW+' kg':'',{b:1});
- txt('Priming A:','A13:D13');txt(v.primA,'E13:J13',{sz:6.9});txt('Priming B:','K13:N13');txt(v.primB,'O13:T13',{sz:6.9});
- txt('Collar:','X13:Z13');fld('AA13:AD13',v.collar?v.collar+' m':'',{b:1});txt('Powder factor:','AE13:AI13',{b:1,sz:7.7});fld('AJ13:AO13',v.pf?v.pf+' kg/m³':'',{b:1});
- txt('Matting','A14:C14');fld('D14:K14',v.matting);fld('L14:Q14',v.matDet);if(!v.matDet)txt('Details','L14:Q14',{sz:5.2,va:'top'});
- txt('Qty:','R14:S14');fld('T14:U14',v.mattQty,{b:1});txt('Stemming:','V14:Y14');txt(v.stem,'Z14:AC14',{al:'c'});txt('Other:','AG14:AH14',{sz:6.9});fld('AI14:AO14',v.stemOther);
- // Explosives table (rows 16-23) + charge layout Type A / B / C
- txt('Explosive name','A15:L15',{sz:6.9,al:'c'});txt('Characteristics','N15:R15',{sz:6.9,al:'c'});txt('Qty','T15:V15',{sz:6.9,al:'c'});
- const TY=[{k:'A',c:'W',l1:'X',l2:'AB',sp:'Spacers/Deck'},{k:'B',c:'AD',l1:'AE',l2:'AH',sp:'Spac/Deck'},{k:'C',c:'AJ',l1:'AK',l2:'AN',sp:'Spac/Deck'}];
- const LBL=['Overburden','Stemming','Main charge','Primer','','Main charge','Primer','Subdrilling'];
- TY.forEach(t=>txt('Type '+t.k,t.c+'15:'+t.l2+'15',{sz:6.9,al:'c'}));
- for(let i=0;i<8;i++){const r=16+i;
-  fld('A'+r+':L'+r,v['en'+(i+1)]);fld('N'+r+':R'+r,v['ec'+(i+1)]);fld('T'+r+':V'+r,v['eq'+(i+1)]);
-  TY.forEach(t=>{cell(t.c+r,v[t.k+i]);txt(i==4?t.sp:LBL[i],t.l1+r+':'+t.l2+r,{sz:6.9,va:'mid'})})}
- // Helpers (rows 24-25)
- txt('Helpers:','A24:C24',{b:1,sz:7.7});
- ln(gx(3),RT[24],gx(3),RB[24],.25,153);ln(gx(20),RT[24],gx(20),RB[25],.25,153);ln(X1,RT[24],X1,RB[24],.25,217);
- ln(gx(3),RB[24],X1,RB[24],.3);ln(X0,RB[25],X1,RB[25],.3);
- F(5.2);[['1',gx(3),24],['2',gx(20),24],['3',X0,25],['4',gx(20),25]].forEach(([n,x,r])=>T(n,x+.6,RT[r]+1.9));
- [[v.h1,gx(3),24,gx(20)],[v.h2,gx(20),24,X1],[v.h3,X0,25,gx(20)],[v.h4,gx(20),25,X1]].forEach(([s,a,r,b])=>txt(s,{x:a+2.4,y:RT[r],w:b-a-2.4,h:RB[r]-RT[r]}));
- // Sketch (rows 26-49): grey header, 41 x 23 cell grid, compass, drawing
- {const r=R('A26:AO26');d.setFillColor(239);d.rect(r.x,r.y,r.w,r.h,'F')}
- txt('Sketch of Shot/Layout  -  Notes','A26:L26',{b:1});txt('Include nearest building, North, timing and sequence','M26:AO26',{sz:6.9});
- const g0=RT[27],g1=RB[49];d.setDrawColor(183);d.setLineWidth(.12);
- for(let c=0;c<=NC;c++)d.line(gx(c),g0,gx(c),g1);for(let r=27;r<=49;r++)d.line(X0,RT[r],X1,RT[r]);d.line(X0,g1,X1,g1);
- d.addImage(IMG.compass,'PNG',X1-15.6,g0+.8,14.8,14.8);
+ const WXp=['Clear','Cloudy','Partially Cloudy','Light rain','Rain','Snow'],w=(v.weather||'').toLowerCase();
+ if(w&&!WXp.some(a=>a.toLowerCase()==w))WXp.push(v.weather);
+ F(9.5,1);T('Weather:',11.3,38.1);let x=11.3+d.getTextWidth('Weather:')+2;
+ WXp.forEach(a=>{x=ob(x,38.1,a.toLowerCase()==w,a,8)});
+ const fs=WXp.length>6?8:9.5;F(fs);T('Wind Direction:',x,38.1);let e=x+d.getTextWidth('Wind Direction:')+1.5;
+ ln(e,39.2,e+10,39.2,.3);fit(v.windDir,e+1,37.9,8);e+=12;F(fs);T('Speed:',e,38.1);e+=d.getTextWidth('Speed:')+1.5;
+ ln(e,39.2,X1,39.2,.3);fit(v.windSpd?v.windSpd+' km/h':'',e+1,37.9,X1-e-1.5);
+ // Seismograph
+ F(7,1);T('Seismograph:',17.7,42.4);F(6.5);
+ [['Distance (meters)',53.3],['Details',108],['Vibrations (mm/s)',164.9],['Decibels (dB)',193.7]].forEach(([t,c])=>T(t,c,42.4,{align:'center'}));
+ const ys=[49.2,54.9,60.3,66];ln(X0,43.8,X1,43.8);ys.forEach(y=>ln(X0,y,X1,y));
+ [17,43.8,62.8,153.5,182.1].forEach(a=>ln(a,43.8,a,66,.2,120));
+ ys.forEach((y,i)=>{d.setDrawColor(0);d.setLineWidth(.25);d.circle(13.3,y-2.75,1.7);F(7);T(i+1,13.3,y-1.85,{align:'center'});
+  fit(v['sbt'+(i+1)],18,y-1.5,24.5);fit(v['sd'+(i+1)],44.8,y-1.5,17);fit(v['st'+(i+1)],63.8,y-1.5,88);fit(v['sv'+(i+1)],154.5,y-1.5,26.5);fit(v['sb'+(i+1)],183.1,y-1.5,22)});
+ // Initiation / priming / matting
+ lf('Initiation system:',11.3,70.1,43.5,72.6,v.initSys);lf('Max weight × Hole:',73.3,70.1,105.7,134.3,v.maxW?v.maxW+' kg':'');
+ lf('Total weight explosives:',135.6,70.1,176.9,X1,v.totW?v.totW+' kg':'',1);
+ F(9.5);T('Priming:',11.3,75.8);let px=24.9;
+ ['Single','Double','Triple','Other'].forEach(o=>{px=ob(px,75.8,v.prim==o,o+(o=='Other'?':':''),8.5)});
+ ln(px-1.5,76.9,px+13,76.9,.3);fit(v.primOther,px-.5,75.6,13);
+ lf('Collar:',120.9,75.8,134.3,150.6,v.collar?v.collar+' m':'');lf('Powder factor:',154.2,75.8,180,X1,v.pf?v.pf+' kg/m³':'',1);
+ lf('Matting',11.3,81,24.5,90.7,v.matting);lf('Qty:',92,81,100.9,110,v.mattQty);
+ F(9.5);T('Stemming:',111.4,81);let sx=129.7;
+ ['¼','½','¾','Other'].forEach(o=>{sx=ob(sx,81,v.stem==o,o+(o=='Other'?':':''),8.5)});
+ ln(sx-1.5,82.1,X1,82.1,.3);fit(v.stemOther,sx-.5,80.8,X1-sx);
+ // Explosives table
+ F(8);[['Explosive name',39],['Characteristics',84.1],['Qty',108]].forEach(([t,c])=>T(t,c,86,{align:'center'}));
+ [92.1,97.7,103.2,108.9,114.3,120,125.4,131.1].forEach((y,i)=>{
+  ln(10.2,y,67.6,y,.3);ln(72.4,y,96.2,y,.3);ln(100.9,y,115.2,y,.3);
+  fit(v['en'+(i+1)],11,y-.9,56);fit(v['ec'+(i+1)],73,y-.9,22.5);fit(v['eq'+(i+1)],101.5,y-.9,13)});
+ // Hole diagrams
+ [[124.5,'A'],[167.4,'B']].forEach(([gx,k])=>{
+  d.setFillColor(216);d.rect(gx,86.2,14.8,44.9,'F');d.setFillColor(255);d.rect(gx+5,86.2,5.2,44.9,'F');
+  ln(gx+5.5,85.6,gx+5.5,131.1,1.1);ln(gx+9.9,85.6,gx+9.9,131.1,1.1);ln(gx+5,130.6,gx+10.4,130.6,1.1);
+  const cx=gx+14.8;F(8);T('Type '+k,cx-.7,86);
+  LAYERS.forEach((t,i)=>{const cy=88.9+i*5.57;cb(cx,cy-1.9,v[k+i]);F(8.5);
+   T(t.startsWith('Spacers')?(k=='B'?'Spac/Deck':'Spacers/Deck'):t,cx+5.4,cy+1.1)})});
+ // Helpers
+ F(9.5,1);T('Helpers:',11.3,133.8);ln(24.5,136.3,X1,136.3,.3);ln(X0-.1,142,X1,142,.3);ln(105.7,131.5,105.7,142,.25,80);
+ F(5.5);T('1',25.3,132.8);T('2',106.5,132.8);T('3',11.3,138.6);T('4',106.5,138.6);
+ fit(v.h1,27,135.4,76);fit(v.h2,108,135.4,97);fit(v.h3,13,141,91);fit(v.h4,108,141,97);
+ // Sketch
+ d.setFillColor(234);d.rect(X0-.1,142.4,X1-X0+.1,5.6,'F');F(10.5,1);T('Sketch of Shot/Layout  -  Notes',11.3,146.4);
+ F(7.5);T('Include nearest building, North, timing and sequence',71,146.4);
+ const g0=148,g1=244;d.setDrawColor(200);d.setLineWidth(.15);
+ for(let a=X0;a<=X1+.1;a+=4.89)d.line(a,g0,a,g1);for(let b=g0;b<=g1+.1;b+=4.8)d.line(X0,b,X1,b);
+ d.addImage(IMG.compass,'PNG',190.5,149,14.8,14.8);
  d.addImage(pads.sk.c.toDataURL('image/png'),'PNG',X0,g0,X1-X0,g1-g0);
  d.setDrawColor(120);d.setLineWidth(.3);d.rect(X0,g0,X1-X0,g1-g0);
- // Notes (rows 50-51: two printed lines, the rest goes to page 2)
- d.setDrawColor(183);d.setLineWidth(.25);d.rect(X0,RT[50],X1-X0,RB[51]-RT[50]);d.line(X0,RB[50],X1,RB[50]);
- txt('Notes:','A50:AO50',{sz:7.7,va:'top'});F(7.5);
- const nl=d.splitTextToSize(v.notes||'',X1-X0-28);
- nl.slice(0,2).forEach((s,i)=>T(s,X0+12,RT[50+i]+3));
- if(nl.length>2){F(5.5);T('(see p. 2)',X1-.8,RB[51]-.8,{align:'right'})}
- // Attached documents + signature (row 52)
- [['A52','B52:F52','Blast Record','c1'],['G52','H52:K52','Drill report','c2'],['L52','M52:Q52','Additional notes','c3'],['R52','S52:V52','Other docs:','c4']].forEach(([c,l,t,k])=>{cell(c,v[k]);txt(t,l,{sz:6.9})});
- fld('W52:X52',v.docsOther,{sz:6.9});txt('SIGNATURE:','Y52:AB52',{sz:6.9,b:1});
- {const r=R('AC52:AO52');ln(r.x,r.y+r.h,r.x+r.w,r.y+r.h,.5);d.addImage(pads.sg.c.toDataURL('image/png'),'PNG',r.x+3,r.y+r.h-12.4,36,12)}
+ // Notes
+ d.rect(X0,g1,X1-X0,14);F(9.5);T('Notes:',11.3,248.3);F(8);
+ const nl=d.splitTextToSize(v.notes||'',180);d.text(nl.slice(0,3),24,248.2,{lineHeightFactor:1.25});
+ if(nl.length>3){F(6.5);T('(see p. 2)',11.3,252)}
+ // Bottom row
+ [[11.3,'c1','Blast Record'],[39.9,'c2','Drill report'],[63.7,'c3','Additional notes'],[92.1,'c4','Other docs:']].forEach(([a,k,t])=>{cb(a,265.6,v[k]);F(9);T(t,a+5.3,268.6)});
+ ln(115,269.7,124.3,269.7,.3);fit(v.docsOther,115.5,268.4,8.5,8);
+ F(9.5,1);T('SIGNATURE:',125.6,268.6);d.addImage(pads.sg.c.toDataURL('image/png'),'PNG',148,258.5,38.4,12.8);ln(144.5,271.3,X1,271.3,.8);
  if(v.ref){F(7,1);T('CORRECTION OF '+v.ref,X0,5)}
  F(6.5);T('Report ID '+(v._id||'')+'  ·  Generated '+(v._created||'').replace('T',' ').slice(0,19)+' UTC  ·  Final read-only version',X0,276.5);
- if(nl.length>2){d.addPage();F(14,1);T('Blast Report - Notes (continued)',X0,16);F(10);d.text(d.splitTextToSize(v.notes,195),X0,25)}
+ if(nl.length>3){d.addPage();F(14,1);T('Blast Report - Notes (continued)',X0,16);F(10);d.text(d.splitTextToSize(v.notes,195),X0,25)}
  return d}
 
 /* ---------- PDF: extra sections (Blast Record / photos / notes) ---------- */
