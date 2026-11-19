@@ -312,10 +312,23 @@ sec('Rock and pattern',fld('material','Type of material','sel',ROCKS,1),fld('mat
 sec('Weather',fld('weather','Weather','sel',WX,1),fld('windDir','Wind direction','sel',WD),N('windSpd','Wind speed (km/h)'),N('temp','Temperature (°C)'));
 sec('Seismograph',...subs(4,'Seismograph',i=>[fld('sbt'+i,'Building type','text','e.g. House, Garage, Warehouse'),N('sd'+i,'Distance (m)'),fld('st'+i,'Details'),fld('sv'+i,'Vibrations (mm/s)'),fld('sb'+i,'Decibels (dB)')]));
 const pf=fld('pf','Powder factor (kg/m³, auto)');pf.querySelector('input').readOnly=true;
-sec('Initiation and loading',fld('initSys','Initiation system','sel',['NONEL','Electric','Detcord','Other'],1),fld('initOther','Initiation system (specify)','text',null,1),N('maxW','Max weight × hole (kg)'),N('totW','Total weight explosives (kg)'),fld('primA','Priming A','sel',['Single','Double','Triple']),fld('primB','Priming B','sel',['Single','Double','Triple']),N('collar','Collar (m)'),fld('stem','Stemming','sel',['¼','½','¾']),fld('stemOther','Stemming: other'),fld('matting','Matting','sel',['Rubber tires','Cable wire','Rope','Conveyor Belt','Mesh','Other']),fld('matDet','Matting details'),N('mattQty','Matting qty'),pf);
+const primB=fld('primB','Priming B','sel',['Single','Double','Triple']),primC=fld('primC','Priming C','sel',['Single','Double','Triple']);
+let nPrim=1; // number of priming types in use (1-3); each one shows its own Type in "Charge layout per hole"
+const pBtn=(sym,label)=>el('button',{type:'button',class:'ibtn',title:label,'aria-label':label},sym);
+const primAdd=pBtn('+','Add priming type'),primDel=pBtn('−','Remove last priming type'),prRow=el('div',{class:'s2',style:'display:flex;gap:8px'},primAdd,primDel);
+sec('Initiation and loading',fld('initSys','Initiation system','sel',['NONEL','Electric','Detcord','Other'],1),fld('initOther','Initiation system (specify)','text',null,1),N('maxW','Max weight × hole (kg)'),N('totW','Total weight explosives (kg)'),fld('primA','Priming A','sel',['Single','Double','Triple']),primB,primC,prRow,N('collar','Collar (m)'),fld('stem','Stemming','sel',['¼','½','¾']),fld('stemOther','Stemming: other'),fld('matting','Matting','sel',['Rubber tires','Cable wire','Rope','Conveyor Belt','Mesh','Other']),fld('matDet','Matting details'),N('mattQty','Matting qty'),pf);
 sec('Explosives',...subs(8,'Explosive',i=>[fld('en'+i,'Explosive name'),fld('ec'+i,'Characteristics'),N('eq'+i,'Qty')]));
 const lay=k=>{const d=el('div',{},el('h3',{},'Type '+k));LAYERS.forEach((t,i)=>d.append(chk(k+i,t)));return d};
-sec('Charge layout per hole',lay('A'),lay('B'),lay('C'));
+const layB=lay('B'),layC=lay('C');
+sec('Charge layout per hole',lay('A'),layB,layC);
+function setPrim(n){nPrim=n;primB.classList.toggle('hide',n<2);primC.classList.toggle('hide',n<3);layB.classList.toggle('hide',n<2);layC.classList.toggle('hide',n<3);primAdd.style.display=n>=3?'none':'';primDel.style.display=n<=1?'none':''}
+setPrim(1);
+const fireInput=()=>$('#form').dispatchEvent(new Event('input',{bubbles:true}));
+primAdd.onclick=()=>{if(nPrim<3){setPrim(nPrim+1);fireInput()}};
+let delArm=0;
+primDel.onclick=()=>{if(nPrim<=1)return;const k='ABC'[nPrim-1],has=K$('prim'+k).value||LAYERS.some((_,i)=>K$(k+i).checked);
+ if(has&&!delArm){delArm=1;primDel.textContent='?';setTimeout(()=>{delArm=0;primDel.textContent='−'},3000);return} // data would be lost: tap twice
+ delArm=0;primDel.textContent='−';K$('prim'+k).value='';LAYERS.forEach((_,i)=>K$(k+i).checked=false);setPrim(nPrim-1);fireInput()};
 sec('Helpers',...[1,2,3,4].map(i=>fld('h'+i,'Helper '+i)));
 sec('Sketch of shot / layout',el('p',{class:'s2 hint'},'Include nearest building, North, timing and sequence.'),sketchEditor());
 sec('Notes',fld('notes','Notes (about 2 lines print on page 1; the rest goes to page 2)','area',null,1));
@@ -323,10 +336,10 @@ sec('Attached',chk('c1','Blast Record'),chk('c2','Drill report'),chk('c3','Addit
 sec('Signature',pad('sg',600,200,[]));
 
 const num=s=>parseFloat(String(s).replace(',','.')),K$=k=>$('[data-k='+k+']');
-function upd(){const t=num(K$('totW').value),vm=num(K$('patA').value)*num(K$('patB').value)*num(K$('holes').value)*num(K$('depth').value);K$('volume').value=vm>0?String(Math.round(vm*10)/10):'';K$('pf').value=t>0&&vm>0?(t/vm).toFixed(2):'';K$('ref').closest('label').classList.toggle('hide',!K$('ref').value);[['material','matOther'],['initSys','initOther']].forEach(([a,c])=>K$(c).closest('label').classList.toggle('hide',K$(a).value!='Other'))}
+function upd(){{const need=K$('primC').value?3:K$('primB').value?2:1;if(need>nPrim)setPrim(need)}const t=num(K$('totW').value),vm=num(K$('patA').value)*num(K$('patB').value)*num(K$('holes').value)*num(K$('depth').value);K$('volume').value=vm>0?String(Math.round(vm*10)/10):'';K$('pf').value=t>0&&vm>0?(t/vm).toFixed(2):'';K$('ref').closest('label').classList.toggle('hide',!K$('ref').value);[['material','matOther'],['initSys','initOther']].forEach(([a,c])=>K$(c).closest('label').classList.toggle('hide',K$(a).value!='Other'))}
 const collect=()=>{const v={};document.querySelectorAll('[data-k]').forEach(e=>v[e.dataset.k]=e.type=='checkbox'?e.checked:e.value);return v};
 function save(){try{const v=collect();v._sk=pads.sk.c.toDataURL();v._skObjs=JSON.stringify(SK.objs);v._sg=pads.sg.c.toDataURL();localStorage.setItem(K,JSON.stringify(v))}catch(e){}}
-function reset(){document.querySelectorAll('[data-k]').forEach(e=>e.type=='checkbox'?e.checked=false:e.value='');pads.sk.clr();pads.sg.clr();try{localStorage.removeItem(K)}catch(e){}upd();scrollTo(0,0)}
+function reset(){document.querySelectorAll('[data-k]').forEach(e=>e.type=='checkbox'?e.checked=false:e.value='');setPrim(1);pads.sk.clr();pads.sg.clr();try{localStorage.removeItem(K)}catch(e){}upd();scrollTo(0,0)}
 $('#form').addEventListener('input',()=>{upd();later()});
 try{const v=JSON.parse(localStorage.getItem(K)||'null');if(v){document.querySelectorAll('[data-k]').forEach(e=>{const x=v[e.dataset.k];if(x!==undefined)e.type=='checkbox'?e.checked=x:e.value=x});
  if(v._skObjs){try{SK.objs=JSON.parse(v._skObjs)}catch(e){}pads.sk.redraw()}
@@ -383,7 +396,7 @@ function build(v){
  const ini=v.initSys=='Other'&&v.initOther?v.initOther:v.initSys;
  txt('Initiation system:','A12:G12');fld('H12:M12',ini);txt('Max weight × Hole:','N12:T12');fld('U12:Z12',v.maxW?v.maxW+' kg':'');
  txt('Total weight explosives:','AA12:AI12',{b:1,al:'r'});fld('AJ12:AO12',v.totW?v.totW+' kg':'',{b:1});
- txt('Priming A:','A13:D13');txt(v.primA,'E13:J13',{sz:6.9});txt('Priming B:','K13:N13');txt(v.primB,'O13:T13',{sz:6.9});
+ txt('Priming A:','A13:D13');txt(v.primA,'E13:G13',{sz:6.9});txt('Priming B:','H13:K13');txt(v.primB||'NA','L13:N13',{sz:6.9});txt('Priming C:','O13:R13');txt(v.primC||'NA','S13:U13',{sz:6.9});
  txt('Collar:','X13:Z13');fld('AA13:AD13',v.collar?v.collar+' m':'',{b:1});txt('Powder factor:','AE13:AI13',{b:1,sz:7.7});fld('AJ13:AO13',v.pf?v.pf+' kg/m³':'',{b:1});
  txt('Matting','A14:C14');fld('D14:K14',v.matting);fld('L14:Q14',v.matDet);if(!v.matDet)txt('Details','L14:Q14',{sz:5.2,va:'top'});
  txt('Qty:','R14:S14');fld('T14:U14',v.mattQty,{b:1});txt('Stemming:','V14:Y14');txt(v.stem,'Z14:AC14',{al:'c'});txt('Other:','AG14:AH14',{sz:6.9});fld('AI14:AO14',v.stemOther);
@@ -548,6 +561,7 @@ async function resumeDraft(id){
   else if(!project){toast('Original project was deleted — pick a project to continue this draft');ST={company,project:null,blastNo:rec.blastNo||null}}
   else ST={company,project,blastNo:rec.blastNo||null};
   currentDraftId=rec.id;
+  setPrim(1);
   document.querySelectorAll('[data-k]').forEach(e=>{const x=rec.form&&rec.form[e.dataset.k];if(x!==undefined)e.type=='checkbox'?e.checked=x:e.value=x});
   SK.objs=rec.skObjs||[];SK.sel=-1;if(pads.sk&&pads.sk.redraw)pads.sk.redraw();
   if(rec.sg&&pads.sg)pads.sg.load(rec.sg);
@@ -716,11 +730,13 @@ function renderExtras(){
  else if(EX.active=='other')root.append(photoTab('otherPhotos','Other document photos (1–2)'))}
 
 /* ---------- Validation: required fields before Continue ---------- */
-const ALWAYS_REQUIRED=['date','time','blastNo','blaster','project','material','patA','patB','holes','rows','depth','diam','weather','windDir','windSpd','temp','initSys','maxW','totW','primA','primB','collar','stem','matting','mattQty','notes'];
+const ALWAYS_REQUIRED=['date','time','blastNo','blaster','project','material','patA','patB','holes','rows','depth','diam','weather','windDir','windSpd','temp','initSys','maxW','totW','primA','collar','stem','matting','mattQty','notes'];
 function fieldLabel(k){const inp=K$(k);const lab=inp&&inp.closest('label');const span=lab&&lab.querySelector('span');return span?span.textContent:k}
 function validateReport(v){
  const missing=[];
  ALWAYS_REQUIRED.forEach(k=>{if(!String(v[k]||'').trim())missing.push(fieldLabel(k))});
+ if(nPrim>=2&&!String(v.primB||'').trim())missing.push(fieldLabel('primB'));
+ if(nPrim>=3&&!String(v.primC||'').trim())missing.push(fieldLabel('primC'));
  if(v.material=='Other'&&!String(v.matOther||'').trim())missing.push(fieldLabel('matOther'));
  if(v.initSys=='Other'&&!String(v.initOther||'').trim())missing.push(fieldLabel('initOther'));
   if(v.matting=='Other'&&!String(v.matDet||'').trim())missing.push(fieldLabel('matDet'));
