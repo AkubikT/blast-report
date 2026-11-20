@@ -70,6 +70,17 @@ button{font:600 16px Barlow,system-ui,sans-serif;min-height:46px;padding:0 16px;
 .tabs{display:flex;gap:8px;overflow-x:auto;margin-bottom:10px;padding-bottom:2px}
 .tab{padding:8px 14px;border-radius:999px;border:2px solid var(--line);background:var(--card);white-space:nowrap;min-height:38px}
 .tab.on{border-color:var(--ink);background:var(--acc)}
+#pgnav{display:flex;gap:6px;max-width:720px;margin:8px auto 0;padding:0 12px}
+#pgnav button{flex:1;min-height:38px;padding:4px 2px;border-radius:999px;border:2px solid var(--line);background:var(--card);font-size:13px;position:relative}
+#pgnav button.on{border-color:var(--ink);background:var(--acc)}
+@media (max-width:780px){#pgnav{margin-top:40px}} /* keep clear of the floating History / Drafts buttons */
+#pgnav button.has::after{content:'';position:absolute;top:3px;right:7px;width:8px;height:8px;border-radius:50%;background:var(--ink)}
+.pgarrow{position:fixed;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;border:2px solid var(--ink);background:var(--card);font-size:24px;line-height:1;z-index:2;display:none;opacity:.9}
+.pgarrow[disabled]{opacity:.2}
+@media (hover:hover) and (pointer:fine){.pgarrow{display:block}}
+.pgin-r{animation:pgr .18s ease-out}.pgin-l{animation:pgl .18s ease-out}
+@keyframes pgr{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
+@keyframes pgl{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}
 .ibtn{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:46px;min-height:46px;padding:4px;border-radius:8px;flex:none}
 .ibtn svg{display:block}
 .ibtn.on{border-color:var(--ink);background:var(--acc)}
@@ -92,12 +103,16 @@ button{font:600 16px Barlow,system-ui,sans-serif;min-height:46px;padding:0 16px;
 
 <div id="scr-report" class="screen hide">
  <header><h1>Blast Report</h1><p id="ctx" class="hint"></p></header>
+ <nav id="pgnav" aria-label="Report sections"></nav>
+ <button type="button" id="pgPrev" class="pgarrow" style="left:8px" aria-label="Previous section" title="Previous section">‹</button>
+ <button type="button" id="pgNext" class="pgarrow" style="right:8px" aria-label="Next section" title="Next section">›</button>
  <main id="form"></main>
+ <main id="pg1" class="hide"></main><main id="pg2" class="hide"></main><main id="pg3" class="hide"></main><main id="pg4" class="hide"></main>
  <div class="bar"><button id="rBack">Back</button><button id="rNew">New</button><button id="rDraft">Save draft</button><button class="p" id="rNext">Continue</button></div>
 </div>
 
 <div id="scr-extras" class="screen hide">
- <header><h1>Additional documents</h1><p class="hint">Fill in what applies, then finalize.</p></header>
+ <header><h1>Finalize</h1><p class="hint">Review what will be included, then finalize.</p></header>
  <main id="extras"></main>
  <div class="bar"><button id="eBack">Back</button><button id="ePrev">Preview</button><button class="p" id="go">Finalize PDF</button></div>
 </div>
@@ -117,9 +132,9 @@ let SK={tool:'pen',color:'#111',objs:[],sel:-1,cur:null,arrowStart:null,_preview
 const SKCOLORS=['#111','#c62828','#1565c0'];
 const el=(t,a={},...c)=>{const e=document.createElement(t);for(const k in a)k=='class'?e.className=a[k]:e.setAttribute(k,a[k]);c.forEach(x=>e.append(x));return e};
 const btn=(t,f)=>{const b=el('button',{type:'button'},t);b.onclick=f;return b};
-let tm,tt;const later=()=>{clearTimeout(tm);tm=setTimeout(save,500)};
+let exReady=false,tm,tt;const later=()=>{clearTimeout(tm);tm=setTimeout(save,500)};
 const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.remove('hide');clearTimeout(tt);tt=setTimeout(()=>t.classList.add('hide'),4000)};
-function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('hide',s.id!==id))}
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('hide',s.id!==id));if(id=='scr-report'&&exReady)goPage(0)}
 function fld(id,label,type='text',opt,span){
  const l=el('label',{class:'f'+(span?' s2':'')},el('span',{},label));let i;
  if(type=='sel'){i=el('select');i.append(el('option',{value:''},'Select'));const add=(p,a)=>a.forEach(o=>p.append(el('option',{},o)));
@@ -332,11 +347,12 @@ primDel.onclick=()=>{if(nPrim<=1)return;const k='ABC'[nPrim-1],has=K$('prim'+k).
 sec('Helpers',...[1,2,3,4].map(i=>fld('h'+i,'Helper '+i)));
 sec('Sketch of shot / layout',el('p',{class:'s2 hint'},'Include nearest building, North, timing and sequence.'),sketchEditor());
 sec('Notes',fld('notes','Notes (about 2 lines print on page 1; the rest goes to page 2)','area',null,1));
-sec('Attached',chk('c1','Blast Record'),chk('c2','Drill report'),chk('c3','Additional notes'),chk('c4','Other docs'),fld('docsOther','Other docs (specify)'));
+const attL=['c1','c2','c3','c4'].map((k,i)=>{const l=chk(k,['Blast Record','Drill report','Additional notes','Other docs'][i]);l.querySelector('input').disabled=true;l.style.cursor='pointer';l.onclick=e=>{e.preventDefault();goPage(i+1)};return l}); // ticked automatically when the section has content
+sec('Attached',el('p',{class:'s2 hint'},'Ticked automatically when that section has content. Tap one to open it, or swipe left/right (arrows on PC).'),...attL,fld('docsOther','Other docs (specify)'));
 sec('Signature',pad('sg',600,200,[]));
 
 const num=s=>parseFloat(String(s).replace(',','.')),K$=k=>$('[data-k='+k+']');
-function upd(){{const need=K$('primC').value?3:K$('primB').value?2:1;if(need>nPrim)setPrim(need)}const t=num(K$('totW').value),vm=num(K$('patA').value)*num(K$('patB').value)*num(K$('holes').value)*num(K$('depth').value);K$('volume').value=vm>0?String(Math.round(vm*10)/10):'';K$('pf').value=t>0&&vm>0?(t/vm).toFixed(2):'';K$('ref').closest('label').classList.toggle('hide',!K$('ref').value);[['material','matOther'],['initSys','initOther']].forEach(([a,c])=>K$(c).closest('label').classList.toggle('hide',K$(a).value!='Other'))}
+function upd(){{const need=K$('primC').value?3:K$('primB').value?2:1;if(need>nPrim)setPrim(need)}syncAttached();const t=num(K$('totW').value),vm=num(K$('patA').value)*num(K$('patB').value)*num(K$('holes').value)*num(K$('depth').value);K$('volume').value=vm>0?String(Math.round(vm*10)/10):'';K$('pf').value=t>0&&vm>0?(t/vm).toFixed(2):'';K$('ref').closest('label').classList.toggle('hide',!K$('ref').value);[['material','matOther'],['initSys','initOther']].forEach(([a,c])=>K$(c).closest('label').classList.toggle('hide',K$(a).value!='Other'))}
 const collect=()=>{const v={};document.querySelectorAll('[data-k]').forEach(e=>v[e.dataset.k]=e.type=='checkbox'?e.checked:e.value);return v};
 function save(){try{const v=collect();v._sk=pads.sk.c.toDataURL();v._skObjs=JSON.stringify(SK.objs);v._sg=pads.sg.c.toDataURL();localStorage.setItem(K,JSON.stringify(v))}catch(e){}}
 function reset(){document.querySelectorAll('[data-k]').forEach(e=>e.type=='checkbox'?e.checked=false:e.value='');setPrim(1);pads.sk.clr();pads.sg.clr();try{localStorage.removeItem(K)}catch(e){}upd();scrollTo(0,0)}
@@ -683,13 +699,14 @@ function defaultBR(){return{blaster:'',blastDate:'',tasks:TASKS.map(t=>({task:t,
 function defaultEX(){return{tabs:[],active:null,blastRecord:defaultBR(),drillPhotos:[],notes:'',otherPhotos:[]}}
 let EX=defaultEX();const EXK='blastExtras';
 let currentDraftId=null;
-let tm2;const later2=()=>{clearTimeout(tm2);tm2=setTimeout(saveEX,500)};
+let tm2;const later2=()=>{syncAttached();clearTimeout(tm2);tm2=setTimeout(saveEX,500)};
 function saveEX(){try{localStorage.setItem(EXK,JSON.stringify(EX))}catch(e){}}
 try{const s=JSON.parse(localStorage.getItem(EXK)||'null');if(s)EX={...defaultEX(),...s,blastRecord:{...defaultBR(),...(s.blastRecord||{})}}}catch(e){}
+exReady=true;
 function tabBR(){
  const s=el('div',{});
- const bI=el('input',{type:'text'});bI.value=EX.blastRecord.blaster||'';bI.oninput=()=>{EX.blastRecord.blaster=bI.value;later2()};
- const dI=el('input',{type:'date'});dI.value=EX.blastRecord.blastDate||'';dI.oninput=()=>{EX.blastRecord.blastDate=dI.value;later2()};
+ const bI=el('input',{type:'text'});bI.value=EX.blastRecord.blaster||K$('blaster').value||'';bI.oninput=()=>{EX.blastRecord.blaster=bI.value;later2()};
+ const dI=el('input',{type:'date'});dI.value=EX.blastRecord.blastDate||K$('date').value||'';dI.oninput=()=>{EX.blastRecord.blastDate=dI.value;later2()};
  s.append(el('section',{class:'sec'},el('h2',{},'Blast Preparation'),el('div',{class:'g'},
   el('label',{class:'f'},el('span',{},'Blaster'),bI),el('label',{class:'f'},el('span',{},'Blast date'),dI))));
  const list=el('section',{class:'sec'},el('h2',{},'Tasks'));
@@ -716,18 +733,40 @@ function photoTab(key,label){
   try{const r=await compress(f,1500,.82);EX[key]=EX[key]||[];EX[key].push(r);later2();draw()}catch(e){toast('Could not read that photo')}};
  sec1.append(thumbs,btn('Add photo',()=>fi.click()),fi);
  return el('div',{},sec1)}
-function renderExtras(){
- const root=$('#extras');root.replaceChildren();
- if(!EX.tabs.length){root.append(el('p',{class:'hint'},'No additional documents were selected on the Blast Report screen. Tap "Finalize PDF" to generate the report.'));return}
- if(!EX.active||!EX.tabs.includes(EX.active))EX.active=EX.tabs[0];
- const LBL={br:'Blast Record',drill:'Drill report',notes:'Additional notes',other:'Other docs'};
- const tb=el('div',{class:'tabs'});
- EX.tabs.forEach(k=>{const b=el('button',{type:'button',class:'tab'+(k==EX.active?' on':'')},LBL[k]);b.onclick=()=>{EX.active=k;renderExtras()};tb.append(b)});
- root.append(tb);
- if(EX.active=='br')root.append(tabBR());
- else if(EX.active=='drill')root.append(photoTab('drillPhotos','Drill report photos (1–2)'));
- else if(EX.active=='notes')root.append(tabNotes());
- else if(EX.active=='other')root.append(photoTab('otherPhotos','Other document photos (1–2)'))}
+/* ---------- Pager: Report -> Blast Record -> Drill report -> Additional notes -> Other docs ---------- */
+const PG_IDS=['form','pg1','pg2','pg3','pg4'],PG_LBL=['Report','Record','Drill','Notes','Other'];
+const PG_BUILD=[null,()=>tabBR(),()=>photoTab('drillPhotos','Drill report photos (1–2)'),()=>tabNotes(),()=>photoTab('otherPhotos','Other document photos (1–2)')];
+let curPg=0;
+// which extra sections actually have content (the Attached ticks follow this)
+function exChanges(){const v=collect(),br=EX.blastRecord||defaultBR();
+ const c1=(br.tasks||[]).some(t=>t.done||t.time||t.date||String(t.notes||'').trim())||!!(br.blaster&&br.blaster!==v.blaster)||!!(br.blastDate&&br.blastDate!==v.date);
+ return{c1,c2:(EX.drillPhotos||[]).length>0,c3:!!String(EX.notes||'').trim(),c4:(EX.otherPhotos||[]).length>0}}
+function syncAttached(){if(!exReady)return;const ch=exChanges(),nav=$('#pgnav');
+ ['c1','c2','c3','c4'].forEach((k,i)=>{const e=K$(k);if(e)e.checked=ch[k];if(nav&&nav.children[i+1])nav.children[i+1].classList.toggle('has',ch[k])})}
+function goPage(i){i=Math.max(0,Math.min(4,i));const prev=curPg;curPg=i;
+ PG_IDS.forEach((id,j)=>$('#'+id).classList.toggle('hide',j!=i));
+ if(i>0)$('#pg'+i).replaceChildren(PG_BUILD[i]());
+ [...$('#pgnav').children].forEach((b,j)=>b.classList.toggle('on',j==i));
+ $('#pgPrev').disabled=i==0;$('#pgNext').disabled=i==4;
+ if(i!=prev){const m=$('#'+PG_IDS[i]);m.classList.remove('pgin-l','pgin-r');void m.offsetWidth;m.classList.add(i>prev?'pgin-r':'pgin-l')}
+ scrollTo(0,0);syncAttached()}
+PG_LBL.forEach((l,i)=>{const b=el('button',{type:'button'},l);b.onclick=()=>goPage(i);$('#pgnav').append(b)});
+$('#pgPrev').onclick=()=>goPage(curPg-1);$('#pgNext').onclick=()=>goPage(curPg+1);
+syncAttached();goPage(0);
+{ // swipe left = next section, swipe right = previous (not on the drawing pads / text areas / two-finger gestures)
+ let sx=0,sy=0,st=0,ok=false;const root=$('#scr-report');
+ root.addEventListener('touchstart',e=>{ok=false;if(e.touches.length!=1||e.target.closest('.pad,.zbox,textarea,.thumbs'))return;sx=e.touches[0].clientX;sy=e.touches[0].clientY;st=Date.now();ok=true},{passive:true});
+ root.addEventListener('touchmove',e=>{if(e.touches.length>1)ok=false},{passive:true});
+ root.addEventListener('touchend',e=>{if(!ok)return;ok=false;const t=e.changedTouches[0],dx=t.clientX-sx,dy=t.clientY-sy,a=document.activeElement;
+  if(a&&a.selectionStart!=null&&a.selectionStart!==a.selectionEnd)return; // user is selecting text
+  if(Math.abs(dx)>80&&Math.abs(dx)>2*Math.abs(dy)&&Date.now()-st<900)goPage(curPg+(dx<0?1:-1))},{passive:true})}
+// final screen: summary of what the PDF will contain
+function renderExtras(){const root=$('#extras');root.replaceChildren();const ch=exChanges();
+ const rows=[['Blast Report',true],['Blast Record',ch.c1],['Drill report',ch.c2],['Additional notes',ch.c3],['Other docs'+(K$('docsOther').value?' ('+K$('docsOther').value+')':''),ch.c4]];
+ const s1=el('section',{class:'sec'},el('h2',{},'The PDF will include'));
+ rows.forEach(([n,on])=>s1.append(el('p',{class:'tasklabel'},(on?'✓  ':'—  ')+n+(on?'':'  (no content)'))));
+ s1.append(el('p',{class:'hint'},'Tap Back to keep editing. Sections are on the report screen: swipe or use the tabs at the top.'));
+ root.append(s1)}
 
 /* ---------- Validation: required fields before Continue ---------- */
 const ALWAYS_REQUIRED=['date','time','blastNo','blaster','project','material','patA','patB','holes','rows','depth','diam','weather','windDir','windSpd','temp','initSys','maxW','totW','primA','collar','stem','matting','mattQty','notes'];
@@ -753,19 +792,17 @@ function validateReport(v){
  return missing}
 
 /* ---------- Navigation & finalize ---------- */
-function fullReset(){currentDraftId=null;reset();EX=defaultEX();try{localStorage.removeItem(EXK)}catch(e){}ST={company:null,project:null,blastNo:null};setupUI={mode:'company-list',editing:null};showScreen('scr-setup');renderSetup()}
+function fullReset(){currentDraftId=null;reset();EX=defaultEX();syncAttached();try{localStorage.removeItem(EXK)}catch(e){}ST={company:null,project:null,blastNo:null};setupUI={mode:'company-list',editing:null};showScreen('scr-setup');renderSetup()}
 function wireNewBtn(b){let armed=0;const orig=b.textContent;b.onclick=()=>{if(!armed){armed=1;b.textContent='Tap again to clear';setTimeout(()=>{armed=0;b.textContent=orig},3000);return}armed=0;b.textContent=orig;fullReset()}}
 wireNewBtn($('#rNew'));
 $('#rDraft').onclick=()=>saveDraft();
 $('#ePrev').onclick=()=>previewPDF();
-$('#rBack').onclick=()=>{showScreen('scr-setup');renderSetup()};
+$('#rBack').onclick=()=>{if(curPg>0){goPage(0);return}showScreen('scr-setup');renderSetup()};
 $('#rNext').onclick=()=>{const v=collect();
  const missing=validateReport(v);
  if(missing.length){toast('Please complete: '+missing.slice(0,4).join(', ')+(missing.length>4?', and '+(missing.length-4)+' more':''));return}
- const tabs=[];if(v.c1)tabs.push('br');if(v.c2)tabs.push('drill');if(v.c3)tabs.push('notes');if(v.c4)tabs.push('other');
- EX.tabs=tabs;EX.blastRecord.blaster=EX.blastRecord.blaster||v.blaster;EX.blastRecord.blastDate=EX.blastRecord.blastDate||v.date;
  renderExtras();showScreen('scr-extras');scrollTo(0,0)};
-$('#eBack').onclick=()=>{showScreen('scr-report');scrollTo(0,0)};
+$('#eBack').onclick=()=>{const k=curPg;showScreen('scr-report');goPage(k)};
 let fin=0;$('#go').onclick=async function(){
  if(!fin){fin=1;this.textContent='Tap again to FINALIZE (cannot be edited)';setTimeout(()=>{fin=0;this.textContent='Finalize PDF'},4000);return}
  fin=0;this.textContent='Finalize PDF';
