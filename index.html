@@ -196,6 +196,7 @@ function sketchEditor(){
     c.fillStyle=o.color;c.textAlign='center';c.textBaseline='middle';c.fillText(o.label,0,0);
     c.restore()}}
   else if(o.type=='text'){c.fillStyle=o.color;c.font=(W*0.022*cm)+'px Barlow, sans-serif';c.fillText(o.text,o.x,o.y)}
+  else if(o.type=='patRect'){c.save();c.setLineDash([6,5]);c.strokeStyle='#00b3ff';c.lineWidth=W*0.002;c.strokeRect(Math.min(o.x1,o.x2),Math.min(o.y1,o.y2),Math.abs(o.x2-o.x1),Math.abs(o.y2-o.y1));c.restore()}
   else if(o.type=='hole'){const r=W*0.014*cm;c.strokeStyle=o.color;c.lineWidth=W*0.0025;c.beginPath();c.arc(o.x,o.y,r,0,7);c.stroke()}
   else if(o.type=='numHole'){const r=W*0.014*cm;c.strokeStyle=o.color;c.lineWidth=W*0.0025;c.beginPath();c.arc(o.x,o.y,r,0,7);c.stroke();
    c.fillStyle=o.color;c.font=(W*0.016*cm)+'px Barlow, sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(o.label||'',o.x,o.y);c.textAlign='left';c.textBaseline='alphabetic'}
@@ -215,15 +216,44 @@ function sketchEditor(){
   const inp=el('input',{type:'text'});inp.value=defVal||'';
   bar.append(inp,btn('OK',()=>{document.body.removeChild(bar);cb(inp.value)}),btn('Cancel',()=>{document.body.removeChild(bar);cb(null)}));
   document.body.append(bar);inp.focus()}
+ // ---- Hole pattern: columns x rows of ordinary holes (each one stays an independent object) ----
+ SK.pat=SK.pat||{cols:5,rows:3,stagger:false,num:false};
+ function askPattern(cb){
+  const P=SK.pat,bar=el('div',{style:'position:fixed;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:8;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px'});
+  const nin=v=>{const i=el('input',{type:'number',inputmode:'numeric',min:1,max:30,style:'width:64px'});i.value=v;return i};
+  const ci=nin(P.cols),ri=nin(P.rows),cs=el('input',{type:'checkbox'}),cn=el('input',{type:'checkbox'});cs.checked=P.stagger;cn.checked=P.num;
+  const done=ok=>{if(ok){const c=Math.max(1,Math.min(30,parseInt(ci.value)||0)),r=Math.max(1,Math.min(30,parseInt(ri.value)||0));if(!c||!r||c*r>200){toast('Use 1–30 columns and rows (max 200 holes)');return}
+    SK.pat={cols:c,rows:r,stagger:cs.checked,num:cn.checked}}
+   document.body.removeChild(bar);cb(ok?SK.pat:null)};
+  const lab=(t,x)=>el('label',{style:'display:flex;align-items:center;gap:6px'},t,x);
+  bar.append(lab('Columns',ci),lab('Rows',ri),lab(cs,'Staggered'),lab(cn,'Numbered'),btn('OK',()=>done(true)),btn('Cancel',()=>done(false)));
+  bar.addEventListener('keydown',e=>{if(e.key=='Enter')done(true)});
+  document.body.append(bar);ci.focus();ci.select()}
+ function makePattern(rect,cfg){
+  const{cols,rows,stagger,num}=cfg,cm=SK.compact?0.6:1,r=W*0.014*cm,minS=2.4*r,sg=stagger&&rows>1&&cols>1?0.5:0;
+  let x0,x1,y0,y1;
+  if(rect.tap){const sp=Math.max(minS,W*0.055),w=(cols-1+sg)*sp,h=(rows-1)*sp;x0=rect.tap.x-w/2;x1=x0+w;y0=rect.tap.y-h/2;y1=y0+h}
+  else{x0=rect.x0;x1=rect.x1;y0=rect.y0;y1=rect.y1}
+  let sx=cols>1?(x1-x0)/(cols-1+sg):0,sy=rows>1?(y1-y0)/(rows-1):0;
+  if(cols>1&&sx<minS){sx=minS;const cx=(x0+x1)/2,w=(cols-1+sg)*sx;x0=cx-w/2}   // never let holes overlap
+  if(rows>1&&sy<minS){sy=minS;const cy=(y0+y1)/2,h=(rows-1)*sy;y0=cy-h/2}
+  if(cols==1)x0=(x0+x1)/2;if(rows==1)y0=(y0+y1)/2;
+  const pts=[];for(let j=0;j<rows;j++)for(let i=0;i<cols;i++)pts.push({x:x0+i*sx+(sg&&j%2?sx/2:0),y:y0+j*sy});
+  const xs=pts.map(q=>q.x),ys=pts.map(q=>q.y),m=r+2;let dx=0,dy=0;                  // keep the whole pattern inside the sketch
+  if(Math.min(...xs)<m)dx=m-Math.min(...xs);else if(Math.max(...xs)>W-m)dx=W-m-Math.max(...xs);
+  if(Math.min(...ys)<m)dy=m-Math.min(...ys);else if(Math.max(...ys)>H-m)dy=H-m-Math.max(...ys);
+  const g=Date.now();pts.forEach((q,i)=>{const o={type:num?'numHole':'hole',color:SK.color,small:SK.compact,x:q.x+dx,y:q.y+dy,g};if(num)o.label=String(i+1);SK.objs.push(o)});
+  SK.sel=-1;redraw();later()}
  // single-finger drawing — dispatched by the pointer-count logic below
  let downPt=null;
  function handleDown(e){e.preventDefault();const p=ptFromEvent(e);downPt=p;
   if(SK.tool=='pen')SK.cur={type:'stroke',color:SK.color,small:SK.compact,pts:[p]};
-  else if(SK.tool=='arrow'||SK.tool=='textArrow')SK.arrowStart=p;
+  else if(SK.tool=='arrow'||SK.tool=='textArrow'||SK.tool=='pattern')SK.arrowStart=p;
   else if(SK.tool=='select'){const idx=hit(p);SK.sel=idx;SK.dragOffset=idx>=0?offsetFor(SK.objs[idx],p):null;redraw()}}
  function handleMove(e){if(!downPt)return;const p=ptFromEvent(e);
   if(SK.tool=='pen'&&SK.cur){SK.cur.pts.push(p);redraw()}
   else if((SK.tool=='arrow'||SK.tool=='textArrow')&&SK.arrowStart){SK._preview={type:'arrow',color:SK.color,x1:SK.arrowStart.x,y1:SK.arrowStart.y,x2:p.x,y2:p.y};redraw()}
+  else if(SK.tool=='pattern'&&SK.arrowStart){SK._preview={type:'patRect',x1:SK.arrowStart.x,y1:SK.arrowStart.y,x2:p.x,y2:p.y};redraw()}
   else if(SK.tool=='select'&&SK.sel>=0&&SK.dragOffset){moveObj(SK.objs[SK.sel],p,SK.dragOffset);redraw()}}
  function handleUp(e){const p=ptFromEvent(e);
   if(SK.tool=='pen'&&SK.cur){if(SK.cur.pts.length>1)SK.objs.push(SK.cur);SK.cur=null;redraw();later()}
@@ -231,6 +261,9 @@ function sketchEditor(){
    if(Math.hypot(ar.x2-ar.x1,ar.y2-ar.y1)>8){SK.objs.push(ar);later()}redraw()}
   else if(SK.tool=='textArrow'&&SK.arrowStart){const ar={type:'textArrow',color:SK.color,small:SK.compact,x1:SK.arrowStart.x,y1:SK.arrowStart.y,x2:p.x,y2:p.y,label:''};SK.arrowStart=null;SK._preview=null;
    if(Math.hypot(ar.x2-ar.x1,ar.y2-ar.y1)>8)askText('',val=>{if(val!=null){ar.label=(val||'').trim();SK.objs.push(ar);redraw();later()}else redraw()});else redraw()}
+  else if(SK.tool=='pattern'&&SK.arrowStart){const a=SK.arrowStart;SK.arrowStart=null;SK._preview=null;redraw();
+   const rect=Math.hypot(p.x-a.x,p.y-a.y)>12?{x0:Math.min(a.x,p.x),x1:Math.max(a.x,p.x),y0:Math.min(a.y,p.y),y1:Math.max(a.y,p.y)}:{tap:a}; // drag = area to fill, tap = pattern centred on the tap
+   askPattern(cfg=>{if(cfg)makePattern(rect,cfg)})}
   else if(SK.tool=='text')askText('',val=>{if(val){SK.objs.push({type:'text',color:SK.color,small:SK.compact,x:p.x,y:p.y,text:val});redraw();later()}});
   else if(SK.tool=='hole'){SK.objs.push({type:'hole',color:SK.color,small:SK.compact,x:p.x,y:p.y});redraw();later()}
   else if(SK.tool=='numHole')askText('',val=>{if(val!=null){SK.objs.push({type:'numHole',color:SK.color,small:SK.compact,x:p.x,y:p.y,label:(val||'').trim()});redraw();later()}});
@@ -275,6 +308,7 @@ function sketchEditor(){
   textArrow:'<line x1="4" y1="20" x2="20" y2="4"/><polyline points="11 4 20 4 20 13"/><rect x="6.5" y="9.5" width="11" height="5" fill="var(--card,#fff)"/>',
   text:'<text x="12" y="18" font-size="16" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none">T</text>',
   hole:'<circle cx="12" cy="12" r="8"/>',
+  pattern:'<circle cx="5.5" cy="5.5" r="2.2"/><circle cx="12" cy="5.5" r="2.2"/><circle cx="18.5" cy="5.5" r="2.2"/><circle cx="5.5" cy="12" r="2.2"/><circle cx="12" cy="12" r="2.2"/><circle cx="18.5" cy="12" r="2.2"/><circle cx="5.5" cy="18.5" r="2.2"/><circle cx="12" cy="18.5" r="2.2"/><circle cx="18.5" cy="18.5" r="2.2"/>',
   numHole:'<circle cx="12" cy="12" r="8"/><text x="12" y="16" font-size="9" text-anchor="middle" fill="currentColor" stroke="none">#</text>',
   move:'<line x1="12" y1="3" x2="12" y2="21"/><polyline points="8 7 12 3 16 7"/><polyline points="8 17 12 21 16 17"/><line x1="3" y1="12" x2="21" y2="12"/><polyline points="7 8 3 12 7 16"/><polyline points="17 8 21 12 17 16"/>',
   undo:'<path d="M3 11a8 8 0 1 1 2.6 5.9"/><polyline points="3 5 3 11 9 11"/>',
@@ -291,10 +325,10 @@ function sketchEditor(){
   b.append(ic);b.onclick=onClick;return b}
 
  const tb=el('div',{class:'tabs'});
- const TOOLS=[['pen','pen','Pen'],['arrow','arrow','Arrow'],['textArrow','textArrow','Text arrow'],['text','text','Text'],['hole','hole','Hole'],['numHole','numHole','Numbered hole'],['select','move','Move']];
+ const TOOLS=[['pen','pen','Pen'],['arrow','arrow','Arrow'],['textArrow','textArrow','Text arrow'],['text','text','Text'],['hole','hole','Hole'],['numHole','numHole','Numbered hole'],['pattern','pattern','Hole pattern'],['select','move','Move']];
  function refreshTools(){tb.querySelectorAll('.ibtn[data-tool]').forEach(x=>x.classList.toggle('on',x.dataset.tool==SK.tool))}
  TOOLS.forEach(([t,icon,label])=>{const b=iconBtn(icon,label,()=>{SK.tool=t;SK.sel=-1;refreshTools();redraw()},t==SK.tool);b.dataset.tool=t;tb.append(b)});
- tb.append(iconBtn('undo','Undo',()=>{SK.objs.pop();SK.sel=-1;redraw();later()}));
+ tb.append(iconBtn('undo','Undo',()=>{const o=SK.objs.pop();if(o&&o.g)while(SK.objs.length&&SK.objs[SK.objs.length-1].g===o.g)SK.objs.pop(); /* a whole hole pattern is undone in one step */SK.sel=-1;redraw();later()}));
  tb.append(iconBtn('del','Delete',()=>{if(SK.sel>=0){SK.objs.splice(SK.sel,1);SK.sel=-1;redraw();later()}}));
  const expandBtn=iconBtn('expand','Expand',()=>openFullscreen());
  tb.append(expandBtn);
@@ -315,7 +349,7 @@ function sketchEditor(){
  function closeFullscreen(){inlineHolder.append(tb,box,row);fsOverlay.classList.add('hide');redraw()}
  fsOverlay.append(el('div',{class:'hh'},el('h1',{},'Sketch'),btn('Done',closeFullscreen)),fsBody);
  document.body.append(fsOverlay);
- inlineHolder.append(el('p',{class:'hint'},'Tools: pen, arrow, arrow with text, text, hole, numbered hole, move; then undo, delete selected, expand and reset zoom. The icon next to the colours switches between small and normal symbols (like Caps Lock); each symbol keeps its own size.'),tb,box,row);
+ inlineHolder.append(el('p',{class:'hint'},'Tools: pen, arrow, arrow with text, text, hole, numbered hole, hole pattern, move; then undo, delete selected, expand and reset zoom. The icon next to the colours switches between small and normal symbols (like Caps Lock); each symbol keeps its own size. Hole pattern: drag a rectangle (or tap), then enter columns and rows; the holes it creates are normal holes you can move or delete one by one.'),tb,box,row);
  return inlineHolder}
 
 const subs=(n,name,mk)=>Array.from({length:n},(_,j)=>{const i=j+1,s=el('div',{class:'sub'},el('h3',{},name+' '+i)),g=el('div',{class:'g'});mk(i).forEach(f=>g.append(f));s.append(g);return s});
