@@ -783,17 +783,19 @@ function goPage(i){i=Math.max(0,Math.min(4,i));const prev=curPg;curPg=i;
  [...$('#pgnav').children].forEach((b,j)=>b.classList.toggle('on',j==i));
  $('#pgPrev').disabled=i==0;$('#pgNext').disabled=i==4;
  if(i!=prev){const m=$('#'+PG_IDS[i]);m.classList.remove('pgin-l','pgin-r');void m.offsetWidth;m.classList.add(i>prev?'pgin-r':'pgin-l')}
- scrollTo(0,0);syncAttached()}
+ if(i!=prev)scrollTo(0,0);
+ syncAttached()}
 PG_LBL.forEach((l,i)=>{const b=el('button',{type:'button'},l);b.onclick=()=>goPage(i);$('#pgnav').append(b)});
 $('#pgPrev').onclick=()=>goPage(curPg-1);$('#pgNext').onclick=()=>goPage(curPg+1);
 syncAttached();goPage(0);
 { // swipe left = next section, swipe right = previous (not on the drawing pads / text areas / two-finger gestures)
  let sx=0,sy=0,st=0,ok=false;const root=$('#scr-report');
- root.addEventListener('touchstart',e=>{ok=false;if(e.touches.length!=1||e.target.closest('.pad,.zbox,textarea,.thumbs'))return;sx=e.touches[0].clientX;sy=e.touches[0].clientY;st=Date.now();ok=true},{passive:true});
+ const hScroll=n=>{for(;n&&n!==root;n=n.parentElement){if(n.nodeType==1&&/(auto|scroll)/.test(getComputedStyle(n).overflowX)&&n.scrollWidth>n.clientWidth+2)return true}return false}; // started on something that scrolls sideways
+ root.addEventListener('touchstart',e=>{ok=false;if(e.touches.length!=1||e.target.closest('.pad,.zbox,textarea,.thumbs,.tabs,.tools')||hScroll(e.target))return;sx=e.touches[0].clientX;sy=e.touches[0].clientY;st=Date.now();ok=true},{passive:true});
  root.addEventListener('touchmove',e=>{if(e.touches.length>1)ok=false},{passive:true});
  root.addEventListener('touchend',e=>{if(!ok)return;ok=false;const t=e.changedTouches[0],dx=t.clientX-sx,dy=t.clientY-sy,a=document.activeElement;
   if(a&&a.selectionStart!=null&&a.selectionStart!==a.selectionEnd)return; // user is selecting text
-  if(Math.abs(dx)>80&&Math.abs(dx)>2*Math.abs(dy)&&Date.now()-st<900)goPage(curPg+(dx<0?1:-1))},{passive:true})}
+  if(Math.abs(dx)>80&&Math.abs(dx)>2*Math.abs(dy)&&Date.now()-st<900){const n=curPg+(dx<0?1:-1);if(n>=0&&n<=4)goPage(n)}},{passive:true})}
 // final screen: summary of what the PDF will contain
 function renderExtras(){const root=$('#extras');root.replaceChildren();const ch=exChanges();
  const rows=[['Blast Report',true],['Blast Record',ch.c1],['Drill report',ch.c2],['Additional notes',ch.c3],['Other docs'+(K$('docsOther').value?' ('+K$('docsOther').value+')':''),ch.c4]];
